@@ -19,6 +19,11 @@ import AssetDetail from './pages/assets/AssetDetail';
 import AssetEdit from './pages/assets/AssetEdit';
 import MaintenanceList from './pages/maintenance/MaintenanceList';
 
+import TransferList from './pages/transfers/TransferList';
+import DisposalList from './pages/disposals/DisposalList';
+import ReportDashboard from './pages/reports/ReportDashboard';
+import Settings from './pages/settings/Setting';
+
 const App = () => {
     // Memastikan status login bertahan saat halaman di-refresh
     const { fetchUser, token } = useAuthStore();
@@ -46,6 +51,10 @@ const App = () => {
 
                     <Route path="/maintenances" element={<MaintenanceList />} />
                     
+                    <Route path="/transfers" element={<TransferList />} />
+                    <Route path="/disposals" element={<DisposalList />} />
+                    <Route path="/reports" element={<ReportDashboard />} />
+                    <Route path="/settings" element={<Settings />} />
                 </Route>
             </Routes>
         </BrowserRouter>

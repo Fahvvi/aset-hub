@@ -24,6 +24,9 @@ class Asset extends Model
     public function user() { return $this->belongsTo(User::class); } // Penanggung Jawab
     public function creator() { return $this->belongsTo(User::class, 'created_by'); }
 
+    public function depreciations() {
+        return $this->hasMany(AssetDepreciation::class, 'asset_id');
+    }
     public function documents()
     {
         return $this->morphMany(Document::class, 'documentable');

@@ -12,6 +12,7 @@ import {
   LogOut,
   ChevronsUpDown,
   Database,
+  BarChart3,
   Users
 } from "lucide-react";
 import useAuthStore from "../store/authStore";
@@ -50,7 +51,7 @@ export default function Sidebar() {
     { name: "Pemeliharaan", icon: Wrench, path: "/maintenances" },
     { name: "Mutasi Aset", icon: ArrowRightLeft, path: "/transfers" },
     { name: "Penghapusan", icon: Trash2, path: "/disposals" },
-    { name: "Laporan", icon: FileText, path: "/reports" },
+    { name: "Laporan", icon: BarChart3, path: "/reports" },
   ];
 
   return (
