@@ -7,6 +7,7 @@ use App\Models\AssetDisposal;
 use App\Models\Asset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Http\Requests\Disposal\StoreDisposalRequest;
 
 class DisposalController extends Controller
 {
@@ -18,29 +19,15 @@ class DisposalController extends Controller
         return response()->json($disposals);
     }
 
-    public function store(Request $request)
+    public function store(StoreDisposalRequest $request)
     {
-        $validated = $request->validate([
-            'asset_id' => 'required|exists:assets,id',
-            'tanggal_disposal' => 'required|date',
-            'metode_disposal' => 'required|in:dijual,dihapus,dihibahkan,rusak_total',
-            'nilai_disposal' => 'nullable|numeric|min:0',
-            'alasan' => 'required|string',
-            'dokumen_referensi' => 'nullable|string'
-        ]);
+        $validated = $request->validated();
 
-        // Cek apakah aset sudah didisposal
-        $asset = Asset::findOrFail($validated['asset_id']);
-        if ($asset->status === 'disposal') {
-            return response()->json(['message' => 'Aset ini sudah dalam status disposal.'], 400);
-        }
-
-        $validated['created_by'] = auth()->id() ?? 1;
-        
-        // Kita asumsikan ada kolom status (pending/disetujui/ditolak) di tabel asset_disposals
+        $validated['created_by'] = auth()->id();
         $validated['status'] = 'pending'; 
 
         $disposal = AssetDisposal::create($validated);
+        
         return response()->json(['message' => 'Pengajuan disposal berhasil dibuat', 'data' => $disposal], 201);
     }
 

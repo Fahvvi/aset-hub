@@ -7,6 +7,7 @@ use App\Models\AssetTransfer;
 use App\Models\Asset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Http\Requests\Transfer\StoreTransferRequest;
 
 class TransferController extends Controller
 {
@@ -18,22 +19,17 @@ class TransferController extends Controller
         return response()->json($transfers);
     }
 
-    public function store(Request $request)
+    public function store(StoreTransferRequest $request)
     {
-        $validated = $request->validate([
-            'asset_id' => 'required|exists:assets,id',
-            'ke_location_id' => 'required|exists:locations,id',
-            'ke_user_id' => 'nullable|exists:users,id',
-            'tanggal_transfer' => 'required|date',
-            'alasan' => 'required|string',
-        ]);
-
+        $validated = $request->validated();
         $asset = Asset::findOrFail($validated['asset_id']);
 
         // Ambil data lokasi & user saat ini dari aset
         $validated['dari_location_id'] = $asset->location_id;
         $validated['dari_user_id'] = $asset->user_id;
         $validated['status'] = 'pending';
+        // Opsional: jika tabel transfer punya kolom created_by
+        // $validated['created_by'] = auth()->id(); 
 
         $transfer = AssetTransfer::create($validated);
 
@@ -52,7 +48,7 @@ class TransferController extends Controller
             // 1. Update status transfer
             $transfer->update([
                 'status' => 'disetujui',
-                'disetujui_oleh' => auth()->id() ?? 1
+                'disetujui_oleh' => auth()->id()
             ]);
 
             // 2. Update data Aset utama

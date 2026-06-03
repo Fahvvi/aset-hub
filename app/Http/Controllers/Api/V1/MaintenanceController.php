@@ -30,7 +30,7 @@ class MaintenanceController extends Controller
         ]);
 
         // Otomatis set requested_by ke user yang sedang login
-        $validated['requested_by'] = auth()->id() ?? 1; // 1 sebagai fallback sementara jika auth belum ketat
+        $validated['requested_by'] = auth()->id(); // 1 sebagai fallback sementara jika auth belum ketat
 
         DB::beginTransaction();
         try {
