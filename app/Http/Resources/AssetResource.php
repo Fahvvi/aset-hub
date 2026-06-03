@@ -29,13 +29,19 @@ class AssetResource extends JsonResource
             'penanggung_jawab' => $this->whenLoaded('user', function() {
                 return $this->user->nama;
             }),
-            'user_detail' => $this->whenLoaded('user', function() {
-                return [
-                    'id' => $this->user->id,
-                    'nama' => $this->user->nama,
-                    'email' => $this->user->email,
-                    'role' => $this->user->role,
-                ];
+            'nomor_seri' => $this->nomor_seri,
+            'nomor_rangka_mesin' => $this->nomor_rangka_mesin,
+            'nomor_unique_lain' => $this->nomor_unique_lain,
+            
+            'user_detail' => $this->when(
+                $this->relationLoaded('user') && in_array(auth()->user()->role ?? '', ['admin', 'superadmin']), 
+                function() {
+                    return [
+                        'id' => $this->user->id,
+                        'nama' => $this->user->nama,
+                        'email' => $this->user->email,
+                        'role' => $this->user->role,
+                    ];
             }),
             
             

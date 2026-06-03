@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Repositories\AssetRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Asset;
 use Exception;
 
 class AssetService
@@ -16,7 +17,20 @@ class AssetService
         $this->assetRepository = $assetRepository;
     }
 
-    public function getAllAssets() { return $this->assetRepository->getAll(); }
+    public function getAllAssets()
+    {
+        $query = Asset::with(['category', 'location', 'vendor', 'department', 'user'])
+                      ->where('status', '!=', 'disposal');
+
+        $user = auth()->user();
+        
+        // RBAC: Jika yang login Staff, HANYA tampilkan aset dari departemennya sendiri
+        if ($user && $user->role === 'staff' && $user->department_id) {
+            $query->where('department_id', $user->department_id);
+        }
+
+        return $query->get();
+    }
     public function getAssetById($id) { return $this->assetRepository->findById($id); }
 
     public function createAsset(array $data, $files = [])

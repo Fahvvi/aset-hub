@@ -8,42 +8,51 @@ export default function AssetForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // State untuk dropdown master data & users
   const [categories, setCategories] = useState([]);
   const [locations, setLocations] = useState([]);
   const [vendors, setVendors] = useState([]);
-  const [users, setUsers] = useState([]); // Tambahan untuk daftar pengguna
+  const [users, setUsers] = useState([]); 
+  const [departments, setDepartments] = useState([]);
 
-  // State untuk form
   const [formData, setFormData] = useState({
-    kode_aset: '', nama_aset: '', category_id: '', location_id: '', vendor_id: '', user_id: '',
+    kode_aset: '', nama_aset: '', category_id: '', department_id: '', location_id: '', vendor_id: '', user_id: '',
+    nomor_seri: '', nomor_rangka_mesin: '', nomor_unique_lain: '',
     tanggal_pembelian: '', tanggal_aktif: '', masa_pakai_tahun: '', harga_perolehan: '',
     nilai_sisa: '', kondisi: 'baik', status: 'aktif', keterangan: ''
   });
   const [fotoFile, setFotoFile] = useState(null);
 
-  // Ambil data referensi saat komponen dimuat
   useEffect(() => {
-  const fetchMasterData = async () => {
-            try {
-            // Menjalankan request secara independen agar jika satu error, yang lain tetap jalan
-            const catReq = axiosInstance.get('/categories').catch(() => ({ data: [] }));
-            const locReq = axiosInstance.get('/locations').catch(() => ({ data: [] }));
-            const venReq = axiosInstance.get('/vendors').catch(() => ({ data: [] }));
-            const userReq = axiosInstance.get('/users').catch(() => ({ data: [] }));
+    const fetchMasterData = async () => {
+      try {
+        const catReq = axiosInstance.get('/categories').catch(() => ({ data: [] }));
+        const locReq = axiosInstance.get('/locations').catch(() => ({ data: [] }));
+        const venReq = axiosInstance.get('/vendors').catch(() => ({ data: [] }));
+        const userReq = axiosInstance.get('/users?active_only=true').catch(() => ({ data: [] }));
+        const depReq = axiosInstance.get('/departments').catch(() => ({ data: [] }));
 
-            const [catRes, locRes, venRes, userRes] = await Promise.all([catReq, locReq, venReq, userReq]);
-            
-            setCategories(catRes.data.data || catRes.data || []);
-            setLocations(locRes.data.data || locRes.data || []);
-            setVendors(venRes.data.data || venRes.data || []);
-            setUsers(userRes.data.data || userRes.data || []);
-            } catch (err) {
-            console.error("Gagal mengambil data referensi", err);
-            }
+        const [catRes, locRes, venRes, userRes, depRes] = await Promise.all([catReq, locReq, venReq, userReq, depReq]);
+        
+        // FUNGSI KEBAL ERROR: Memastikan data selalu berwujud Array []
+        const safeArray = (res) => {
+          if (Array.isArray(res)) return res;
+          if (res?.data && Array.isArray(res.data)) return res.data;
+          if (res?.data?.data && Array.isArray(res.data.data)) return res.data.data;
+          return [];
         };
+        
+        setCategories(safeArray(catRes));
+        setLocations(safeArray(locRes));
+        setVendors(safeArray(venRes));
+        setUsers(safeArray(userRes));
+        setDepartments(safeArray(depRes));
+        
+      } catch (err) {
+        console.error("Gagal mengambil data referensi", err);
+      }
+    };
     fetchMasterData();
-    }, []);
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -61,10 +70,11 @@ export default function AssetForm() {
     setIsLoading(true);
     setError('');
 
-    // Gunakan FormData karena ada file foto
     const payload = new FormData();
     Object.keys(formData).forEach(key => {
-      if (formData[key]) payload.append(key, formData[key]);
+      if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
+        payload.append(key, formData[key]);
+      }
     });
     if (fotoFile) payload.append('foto', fotoFile);
 
@@ -72,7 +82,7 @@ export default function AssetForm() {
       await axiosInstance.post('/assets', payload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      navigate('/assets'); // Kembali ke daftar aset jika sukses
+      navigate('/assets');
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal menyimpan aset. Periksa kembali isian Anda.');
     } finally {
@@ -111,28 +121,54 @@ export default function AssetForm() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Kode Aset (Opsional)</label>
-              <input type="text" name="kode_aset" value={formData.kode_aset} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="Kosongkan untuk otomatis SDI-..." />
+              <input type="text" name="kode_aset" value={formData.kode_aset} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="Kosongkan untuk otomatis dari sistem" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Kategori <span className="text-red-500">*</span></label>
               <select name="category_id" required value={formData.category_id} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
                 <option value="" disabled>-- Pilih Kategori --</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.nama_kategori} ({c.kode_kategori})</option>)}
+                {Array.isArray(categories) && categories.map(c => <option key={c.id} value={c.id}>{c.nama_kategori}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Departemen <span className="text-red-500">*</span></label>
+              <select name="department_id" required value={formData.department_id} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
+                <option value="" disabled>-- Pilih Departemen --</option>
+                {Array.isArray(departments) && departments.map(d => <option key={d.id} value={d.id}>{d.nama_departemen}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Lokasi <span className="text-red-500">*</span></label>
               <select name="location_id" required value={formData.location_id} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
                 <option value="" disabled>-- Pilih Lokasi --</option>
-                {locations.map(l => <option key={l.id} value={l.id}>{l.nama_lokasi} - {l.gedung}</option>)}
+                {Array.isArray(locations) && locations.map(l => <option key={l.id} value={l.id}>{l.nama_lokasi} - {l.gedung}</option>)}
               </select>
             </div>
-            <div className="md:col-span-2">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Vendor Pengadaan</label>
               <select name="vendor_id" value={formData.vendor_id} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
                 <option value="">-- Tidak Ada / Pilih Vendor --</option>
-                {vendors.map(v => <option key={v.id} value={v.id}>{v.nama_vendor}</option>)}
+                {Array.isArray(vendors) && vendors.map(v => <option key={v.id} value={v.id}>{v.nama_vendor}</option>)}
               </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Identitas Unik */}
+        <div className="bg-white p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-5">
+          <h3 className="font-bold text-gray-800 border-b pb-2">Identitas Unik (Opsional)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Nomor Seri (S/N) Pabrik</label>
+              <input type="text" name="nomor_seri" value={formData.nomor_seri} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="Contoh: SN-1234567890" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Nomor Rangka / Mesin</label>
+              <input type="text" name="nomor_rangka_mesin" value={formData.nomor_rangka_mesin} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="Khusus untuk kendaraan berat" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Nomor Unik Lainnya</label>
+              <input type="text" name="nomor_unique_lain" value={formData.nomor_unique_lain} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="MAC Address / BPKB / dll" />
             </div>
           </div>
         </div>
@@ -151,11 +187,11 @@ export default function AssetForm() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Harga Perolehan (Rp) <span className="text-red-500">*</span></label>
-              <input type="number" name="harga_perolehan" required min="0" value={formData.harga_perolehan} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="Contoh: 15000000" />
+              <input type="number" name="harga_perolehan" required min="0" value={formData.harga_perolehan} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Masa Pakai (Tahun) <span className="text-red-500">*</span></label>
-              <input type="number" name="masa_pakai_tahun" required min="1" value={formData.masa_pakai_tahun} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="Isi sesuai umur ekonomis kategori" />
+              <input type="number" name="masa_pakai_tahun" required min="1" value={formData.masa_pakai_tahun} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" />
             </div>
           </div>
         </div>
@@ -181,7 +217,6 @@ export default function AssetForm() {
               </select>
             </div>
             
-            {/* TAMBAHAN: Digunakan Oleh */}
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Digunakan oleh (Opsional)</label>
               <select name="user_id" value={formData.user_id} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
@@ -190,7 +225,6 @@ export default function AssetForm() {
                     <option key={u.id} value={u.id}>{u.nama} ({u.role})</option>
                 ))}
               </select>
-              <p className="text-[11px] text-gray-400 mt-1">Anda bisa mengetikkan nama di dalam kotak untuk mencari dengan cepat.</p>
             </div>
 
             <div className="md:col-span-2">
@@ -198,18 +232,16 @@ export default function AssetForm() {
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center bg-gray-50/50 hover:bg-gray-50 transition-colors">
                 <ImageIcon className="text-gray-400 w-10 h-10 mb-2" />
                 <p className="text-sm text-gray-600 mb-1">Klik atau seret foto ke area ini</p>
-                <p className="text-xs text-gray-400 mb-4">PNG, JPG, JPEG (Max. 2MB)</p>
-                <input type="file" accept="image/jpeg, image/png, image/jpg" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100" />
+                <input type="file" accept="image/jpeg, image/png, image/jpg" onChange={handleFileChange} className="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100" />
               </div>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Keterangan / Catatan Tambahan</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Keterangan Tambahan</label>
               <textarea name="keterangan" value={formData.keterangan} onChange={handleChange} rows="3" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"></textarea>
             </div>
           </div>
         </div>
 
-        {/* Tombol Aksi */}
         <div className="flex justify-end gap-3 mt-2">
           <Link to="/assets" className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors">
             Batal

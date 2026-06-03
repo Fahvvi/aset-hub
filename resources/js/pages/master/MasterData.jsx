@@ -1,38 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FolderTree, MapPin, Building2, Plus, 
-  Search, Edit, Trash2, X, AlertCircle
+  Search, Edit, Trash2, X, AlertCircle, Users, CheckCircle, XCircle, Briefcase
 } from 'lucide-react';
 import axiosInstance from '../../api/axios';
+import useAuthStore from '../../store/authStore';
 
 export default function MasterData() {
   const [activeTab, setActiveTab] = useState('kategori');
   const [data, setData] = useState([]);
+  const [departmentOptions, setDepartmentOptions] = useState([]); // State khusus untuk dropdown di form User
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // State untuk Modal CRUD
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState('add'); // 'add' atau 'edit'
+  const [modalMode, setModalMode] = useState('add');
   const [selectedId, setSelectedId] = useState(null);
   const [formData, setFormData] = useState({});
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Konfigurasi Tabs
+  const { user } = useAuthStore();
+
   const tabs = [
     { id: 'kategori', label: 'Kategori Aset', icon: FolderTree, endpoint: '/categories' },
     { id: 'lokasi', label: 'Lokasi & Ruangan', icon: MapPin, endpoint: '/locations' },
+    { id: 'departemen', label: 'Departemen / Divisi', icon: Briefcase, endpoint: '/departments' }, // <-- TAB BARU
     { id: 'vendor', label: 'Vendor / Supplier', icon: Building2, endpoint: '/vendors' },
+    { id: 'user', label: 'Pengguna & Hak Akses', icon: Users, endpoint: '/users' },
   ];
 
-  // --- FUNGSI FETCH DATA ---
   const fetchData = async () => {
     setIsLoading(true);
     try {
       const currentTab = tabs.find(t => t.id === activeTab);
       const response = await axiosInstance.get(currentTab.endpoint);
-      setData(response.data.data || response.data); 
+      setData(response.data.data || response.data || []); 
+
+      // Jika di tab user, kita ambil juga data departemen untuk dropdown alokasi
+      if (currentTab.id === 'user') {
+        const depRes = await axiosInstance.get('/departments').catch(() => ({ data: [] }));
+        setDepartmentOptions(depRes.data.data || depRes.data || []);
+      }
     } catch (error) {
       console.error('Error fetching master data:', error);
     } finally {
@@ -45,7 +54,6 @@ export default function MasterData() {
     setSearchTerm('');
   }, [activeTab]);
 
-  // --- KONFIGURASI FORM DINAMIS BERSARKAN TAB ---
   const getFormFields = () => {
     if (activeTab === 'kategori') {
       return [
@@ -69,6 +77,13 @@ export default function MasterData() {
         { name: 'deskripsi', label: 'Deskripsi', type: 'textarea' },
       ];
     }
+    if (activeTab === 'departemen') {
+      return [
+        { name: 'kode_departemen', label: 'Kode Departemen', type: 'text', required: true, placeholder: 'Contoh: IT, HRD, FIN' },
+        { name: 'nama_departemen', label: 'Nama Departemen', type: 'text', required: true, placeholder: 'Contoh: Information Technology' },
+        { name: 'deskripsi', label: 'Deskripsi / Keterangan', type: 'textarea' },
+      ];
+    }
     if (activeTab === 'vendor') {
       return [
         { name: 'kode_vendor', label: 'Kode Vendor', type: 'text', required: true },
@@ -79,20 +94,52 @@ export default function MasterData() {
         { name: 'alamat', label: 'Alamat Lengkap', type: 'textarea' },
       ];
     }
+    if (activeTab === 'user') {
+      return [
+        { name: 'nama', label: 'Nama Lengkap', type: 'text', required: true },
+        { name: 'username', label: 'Username', type: 'text', required: true },
+        { name: 'email', label: 'Alamat Email', type: 'email', required: true },
+        { name: 'department_id', label: 'Departemen', type: 'select', required: false, options: [
+            { value: '', label: '-- Tidak Dialokasikan --' },
+            ...departmentOptions.map(d => ({ value: d.id, label: d.nama_departemen }))
+        ]},
+        { 
+          name: 'password', 
+          label: 'Password', 
+          type: 'password', 
+          required: modalMode === 'add', 
+          placeholder: modalMode === 'edit' ? 'Kosongkan jika tidak ingin mengubah password' : 'Minimal 8 karakter' 
+        },
+        { name: 'role', label: 'Hak Akses (Role)', type: 'select', required: true, options: [
+            { value: 'staff', label: 'Staff' },
+            { value: 'admin', label: 'Admin' },
+            { value: 'superadmin', label: 'Super Administrator' }
+        ]},
+        { name: 'is_active', label: 'Status Akun', type: 'select', required: true, options: [
+            { value: '1', label: 'Aktif' },
+            { value: '0', label: 'Non-aktif' }
+        ]},
+      ];
+    }
     return [];
   };
 
-  // --- FUNGSI HANDLE MODAL & INPUT ---
   const openModal = (mode, item = null) => {
     setFormError('');
     setModalMode(mode);
     setIsModalOpen(true);
     if (mode === 'edit' && item) {
       setSelectedId(item.id);
-      setFormData({ ...item }); 
+      setFormData({ 
+        ...item, 
+        is_active: item.is_active ? '1' : '0', 
+        password: '',
+        department_id: item.department_id || '' 
+      }); 
     } else {
       setSelectedId(null);
       if(activeTab === 'kategori') setFormData({ metode_penyusutan: 'straight_line', umur_ekonomis_tahun: 4, nilai_sisa_persen: 0 });
+      else if(activeTab === 'user') setFormData({ role: 'staff', is_active: '1', department_id: '' });
       else setFormData({});
     }
   };
@@ -107,7 +154,6 @@ export default function MasterData() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // --- FUNGSI CRUD KE API ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -115,11 +161,17 @@ export default function MasterData() {
     
     const currentTab = tabs.find(t => t.id === activeTab);
     
+    // Hilangkan field yang tidak perlu sebelum dikirim
+    const payload = { ...formData };
+    if (activeTab === 'user' && !payload.password) {
+      delete payload.password;
+    }
+    
     try {
       if (modalMode === 'add') {
-        await axiosInstance.post(currentTab.endpoint, formData);
+        await axiosInstance.post(currentTab.endpoint, payload);
       } else {
-        await axiosInstance.put(`${currentTab.endpoint}/${selectedId}`, formData);
+        await axiosInstance.put(`${currentTab.endpoint}/${selectedId}`, payload);
       }
       closeModal();
       fetchData(); 
@@ -139,18 +191,19 @@ export default function MasterData() {
       await axiosInstance.delete(`${currentTab.endpoint}/${id}`);
       fetchData();
     } catch (error) {
-      alert(error.response?.data?.message || 'Gagal menghapus data. Pastikan data ini tidak sedang digunakan di tabel aset.');
+      alert(error.response?.data?.message || 'Gagal menghapus data.');
     }
   };
 
-  // --- FILTER SEARCH ---
-  const filteredData = data.filter(item => {
+  const filteredData = Array.isArray(data) ? data.filter(item => {
     const searchStr = searchTerm.toLowerCase();
     if (activeTab === 'kategori') return item.nama_kategori?.toLowerCase().includes(searchStr) || item.kode_kategori?.toLowerCase().includes(searchStr);
     if (activeTab === 'lokasi') return item.nama_lokasi?.toLowerCase().includes(searchStr) || item.kode_lokasi?.toLowerCase().includes(searchStr);
+    if (activeTab === 'departemen') return item.nama_departemen?.toLowerCase().includes(searchStr) || item.kode_departemen?.toLowerCase().includes(searchStr);
     if (activeTab === 'vendor') return item.nama_vendor?.toLowerCase().includes(searchStr) || item.kode_vendor?.toLowerCase().includes(searchStr);
+    if (activeTab === 'user') return item.nama?.toLowerCase().includes(searchStr) || item.username?.toLowerCase().includes(searchStr) || item.email?.toLowerCase().includes(searchStr);
     return true;
-  });
+  }) : [];
 
   return (
     <div className="flex flex-col gap-4 md:gap-6 w-full max-w-full overflow-hidden relative">
@@ -159,18 +212,20 @@ export default function MasterData() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800">Data Master</h1>
-          <p className="text-sm md:text-base text-gray-500 mt-1">Kelola data referensi untuk kategori, lokasi, dan vendor.</p>
+          <p className="text-sm md:text-base text-gray-500 mt-1">Kelola data referensi untuk kategori, lokasi, departemen, vendor, dan pengguna.</p>
         </div>
-        <button 
-          onClick={() => openModal('add')}
-          className="flex items-center justify-center gap-2 bg-primary hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap"
-        >
-          <Plus size={18} />
-          Tambah Data
-        </button>
+        
+        {user?.role !== 'staff' && (
+          <button 
+            onClick={() => openModal('add')}
+            className="flex items-center justify-center gap-2 bg-primary hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap"
+          >
+            <Plus size={18} />
+            Tambah Data
+          </button>
+        )}
       </div>
 
-      {/* Main Content Area */}
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col w-full overflow-hidden">
         
         {/* Tabs Navigation */}
@@ -191,7 +246,6 @@ export default function MasterData() {
           ))}
         </div>
 
-        {/* Toolbar (Search) */}
         <div className="p-4 md:p-5 border-b border-gray-100 flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -205,7 +259,6 @@ export default function MasterData() {
           </div>
         </div>
 
-        {/* Data Table */}
         <div className="w-full overflow-x-auto pb-2">
           <table className="w-full text-left text-sm text-gray-600 min-w-[800px]">
             <thead className="text-xs text-gray-500 bg-gray-50/80 uppercase tracking-wider">
@@ -228,6 +281,13 @@ export default function MasterData() {
                     <th className="px-5 py-3.5 font-semibold min-w-[200px]">Deskripsi</th>
                   </>
                 )}
+                {activeTab === 'departemen' && (
+                  <>
+                    <th className="px-5 py-3.5 font-semibold whitespace-nowrap">Kode</th>
+                    <th className="px-5 py-3.5 font-semibold whitespace-nowrap">Nama Departemen</th>
+                    <th className="px-5 py-3.5 font-semibold min-w-[200px]">Deskripsi</th>
+                  </>
+                )}
                 {activeTab === 'vendor' && (
                   <>
                     <th className="px-5 py-3.5 font-semibold whitespace-nowrap">Kode</th>
@@ -237,7 +297,18 @@ export default function MasterData() {
                     <th className="px-5 py-3.5 font-semibold min-w-[200px]">Alamat</th>
                   </>
                 )}
-                <th className="px-5 py-3.5 font-semibold text-right whitespace-nowrap">Aksi</th>
+                {activeTab === 'user' && (
+                  <>
+                    <th className="px-5 py-3.5 font-semibold whitespace-nowrap">Nama Pengguna</th>
+                    <th className="px-5 py-3.5 font-semibold whitespace-nowrap">Departemen</th>
+                    <th className="px-5 py-3.5 font-semibold whitespace-nowrap">Hak Akses</th>
+                    <th className="px-5 py-3.5 font-semibold whitespace-nowrap">Status</th>
+                  </>
+                )}
+                
+                {user?.role !== 'staff' && (
+                  <th className="px-5 py-3.5 font-semibold text-right whitespace-nowrap">Aksi</th>
+                )}
               </tr>
             </thead>
             
@@ -273,6 +344,13 @@ export default function MasterData() {
                         <td className="px-5 py-3 max-w-[200px] truncate" title={item.deskripsi}>{item.deskripsi || '-'}</td>
                       </>
                     )}
+                    {activeTab === 'departemen' && (
+                      <>
+                        <td className="px-5 py-3 font-medium text-gray-900 whitespace-nowrap">{item.kode_departemen}</td>
+                        <td className="px-5 py-3 whitespace-nowrap">{item.nama_departemen}</td>
+                        <td className="px-5 py-3 max-w-[200px] truncate" title={item.deskripsi}>{item.deskripsi || '-'}</td>
+                      </>
+                    )}
                     {activeTab === 'vendor' && (
                       <>
                         <td className="px-5 py-3 font-medium text-gray-900 whitespace-nowrap">{item.kode_vendor}</td>
@@ -282,23 +360,52 @@ export default function MasterData() {
                         <td className="px-5 py-3 max-w-[200px] truncate" title={item.alamat}>{item.alamat || '-'}</td>
                       </>
                     )}
+                    {activeTab === 'user' && (
+                      <>
+                        <td className="px-5 py-3 whitespace-nowrap">
+                          <p className="font-semibold text-gray-800">{item.nama}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{item.email}</p>
+                        </td>
+                        <td className="px-5 py-3 whitespace-nowrap">
+                          <span className="text-xs text-gray-700 font-medium bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200">
+                            {item.department?.nama_departemen || 'Belum Dialokasikan'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 whitespace-nowrap">
+                          <span className={`px-2.5 py-1 text-[11px] font-bold uppercase rounded-md border ${
+                            item.role === 'superadmin' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                            item.role === 'admin' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            'bg-gray-50 text-gray-700 border-gray-200'
+                          }`}>{item.role}</span>
+                        </td>
+                        <td className="px-5 py-3 whitespace-nowrap">
+                          {item.is_active ? (
+                            <span className="text-green-600 flex items-center gap-1 text-xs font-semibold"><CheckCircle size={14}/> Aktif</span>
+                          ) : (
+                            <span className="text-red-500 flex items-center gap-1 text-xs font-semibold"><XCircle size={14}/> Non-aktif</span>
+                          )}
+                        </td>
+                      </>
+                    )}
 
-                    <td className="px-5 py-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={() => openModal('edit', item)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(item.id, item.nama_kategori || item.nama_lokasi || item.nama_vendor)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
+                    {user?.role !== 'staff' && (
+                      <td className="px-5 py-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={() => openModal('edit', item)}
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(item.id, item.nama_kategori || item.nama_lokasi || item.nama_departemen || item.nama_vendor || item.nama)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -312,7 +419,6 @@ export default function MasterData() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
             
-            {/* Modal Header */}
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <h3 className="text-lg font-bold text-gray-800">
                 {modalMode === 'add' ? 'Tambah' : 'Edit'} {tabs.find(t => t.id === activeTab).label}
@@ -322,7 +428,6 @@ export default function MasterData() {
               </button>
             </div>
 
-            {/* Modal Body (Form) */}
             <div className="p-6 overflow-y-auto">
               {formError && (
                 <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm flex items-start gap-2 border border-red-100">
@@ -355,9 +460,10 @@ export default function MasterData() {
                         required={field.required}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
                       >
-                        <option value="" disabled>Pilih {field.label}</option>
-                        {field.options.map(opt => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        {/* Biarkan opsi kosong pertama jika bukan required */}
+                        {!field.required && <option value="" disabled={field.required}>Pilih {field.label}</option>}
+                        {field.options.map((opt, idx) => (
+                          <option key={idx} value={opt.value}>{opt.label}</option>
                         ))}
                       </select>
                     ) : (
@@ -377,7 +483,6 @@ export default function MasterData() {
               </form>
             </div>
 
-            {/* Modal Footer */}
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
               <button
                 type="button"

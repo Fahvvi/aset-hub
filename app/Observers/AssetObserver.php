@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\Asset;
 use App\Models\AuditLog;
 use Illuminate\Support\Facades\Request;
+use Illuminate\Support\Arr;
 
 class AssetObserver
 {
@@ -42,15 +43,23 @@ class AssetObserver
     }
 
     // Fungsi bantuan penyimpan log
+
     private function recordLog(Asset $asset, string $action, $nilaiLama, $nilaiBaru): void
     {
+        // Daftar kolom yang TIDAK PERLU masuk ke Audit Log
+        $hiddenFields = ['created_at', 'updated_at', 'deleted_at', 'created_by', 'updated_by'];
+
+        // Filter array sebelum di-encode ke JSON
+        $filteredLama = $nilaiLama ? Arr::except($nilaiLama, $hiddenFields) : null;
+        $filteredBaru = $nilaiBaru ? Arr::except($nilaiBaru, $hiddenFields) : null;
+
         AuditLog::create([
-            'user_id' => auth()->id(), // Siapa yang melakukan aksi
+            'user_id' => auth()->id(), // Biarkan null jika proses dari sistem (scheduler)
             'action' => $action,
             'auditable_type' => Asset::class,
             'auditable_id' => $asset->id,
-            'nilai_lama' => $nilaiLama ? json_encode($nilaiLama) : null,
-            'nilai_baru' => $nilaiBaru ? json_encode($nilaiBaru) : null,
+            'nilai_lama' => $filteredLama ? json_encode($filteredLama) : null,
+            'nilai_baru' => $filteredBaru ? json_encode($filteredBaru) : null,
             'ip_address' => Request::ip(),
             'user_agent' => Request::userAgent(),
         ]);

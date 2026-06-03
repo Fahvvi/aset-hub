@@ -3,6 +3,7 @@ import {
   ArrowRightLeft, Plus, Search, Check, X as RejectIcon, X, AlertCircle, Clock, CheckCircle, XCircle 
 } from 'lucide-react';
 import axiosInstance from '../../api/axios';
+import useAuthStore from '../../store/authStore';
 
 export default function TransferList() {
   const [transfers, setTransfers] = useState([]);
@@ -17,6 +18,9 @@ export default function TransferList() {
   const [formData, setFormData] = useState({});
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Ambil data user dari Zustand untuk RBAC
+  const { user } = useAuthStore();
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -156,12 +160,19 @@ export default function TransferList() {
                     <td className="px-5 py-4 whitespace-nowrap">
                       {getStatusBadge(item.status)}
                     </td>
+                    
                     <td className="px-5 py-4 text-right whitespace-nowrap">
                       {item.status === 'pending' ? (
-                        <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleApproveReject(item.id, 'approve')} className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors" title="Setujui Mutasi"><Check size={18} /></button>
-                          <button onClick={() => handleApproveReject(item.id, 'reject')} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Tolak Mutasi"><RejectIcon size={18} /></button>
-                        </div>
+                        user?.role !== 'staff' ? (
+                          // ADMIN/SUPERADMIN: Bisa Approve & Reject
+                          <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => handleApproveReject(item.id, 'approve')} className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors" title="Setujui Mutasi"><Check size={18} /></button>
+                            <button onClick={() => handleApproveReject(item.id, 'reject')} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Tolak Mutasi"><RejectIcon size={18} /></button>
+                          </div>
+                        ) : (
+                          // STAFF: Hanya bisa melihat status menunggu
+                          <span className="text-xs text-orange-500 italic font-medium">Menunggu Approval</span>
+                        )
                       ) : (
                         <span className="text-xs text-gray-400 italic">Terkunci</span>
                       )}

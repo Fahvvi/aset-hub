@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Edit, Box, MapPin, Calendar, Image as ImageIcon, 
-  User, Mail, Shield, X 
+  User, Mail, Shield, X, Briefcase, Hash, Barcode
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import axiosInstance from '../../api/axios';
+import useAuthStore from '../../store/authStore';
 
 export default function AssetDetail() {
   const { id } = useParams();
   const [asset, setAsset] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   
-  // State untuk mengontrol muncul/hilangnya Modal User
+  const { user } = useAuthStore();
   const [showUserModal, setShowUserModal] = useState(false);
 
   useEffect(() => {
@@ -45,12 +46,15 @@ export default function AssetDetail() {
             <p className="text-sm text-gray-500 mt-1 font-mono">{asset.kode_aset}</p>
           </div>
         </div>
-        <Link 
-          to={`/assets/${asset.id}/edit`} 
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-        >
-          <Edit size={16} /> Edit Aset
-        </Link>
+        
+        {user?.role !== 'staff' && (
+          <Link 
+            to={`/assets/${asset.id}/edit`} 
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+          >
+            <Edit size={16} /> Edit Aset
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -58,22 +62,54 @@ export default function AssetDetail() {
         {/* Kolom Kiri: Info Utama */}
         <div className="lg:col-span-2 flex flex-col gap-6">
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h3 className="font-bold text-gray-800 border-b pb-3 mb-4">Informasi Dasar</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
+            <h3 className="font-bold text-gray-800 border-b pb-3 mb-5">Informasi Dasar & Identitas Aset</h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-5 gap-x-6">
               <div>
                 <p className="text-xs text-gray-400 font-medium mb-1">Kategori</p>
                 <p className="text-sm font-semibold text-gray-800 flex items-center gap-2"><Box size={16} className="text-gray-400"/> {asset.kategori || '-'}</p>
               </div>
+              
+              {/* DEPARTEMEN */}
               <div>
-                <p className="text-xs text-gray-400 font-medium mb-1">Lokasi</p>
+                <p className="text-xs text-gray-400 font-medium mb-1">Departemen / Divisi</p>
+                <p className="text-sm font-semibold text-primary flex items-center gap-2">
+                  <Briefcase size={16} className="text-primary"/> {asset.departemen || 'Belum Dialokasikan'}
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-xs text-gray-400 font-medium mb-1">Lokasi Aset</p>
                 <p className="text-sm font-semibold text-gray-800 flex items-center gap-2"><MapPin size={16} className="text-gray-400"/> {asset.lokasi || '-'}</p>
               </div>
+
+              {/* NOMOR SERI & IDENTITAS LAIN */}
+              <div>
+                <p className="text-xs text-gray-400 font-medium mb-1">Nomor Seri (S/N)</p>
+                <p className="text-sm font-semibold text-gray-800 font-mono flex items-center gap-2">
+                  <Barcode size={16} className="text-gray-400"/> {asset.nomor_seri || '-'}
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-xs text-gray-400 font-medium mb-1">Nomor Rangka / Mesin</p>
+                <p className="text-sm font-semibold text-gray-800 font-mono flex items-center gap-2">
+                  <Hash size={16} className="text-gray-400"/> {asset.nomor_rangka_mesin || '-'}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs text-gray-400 font-medium mb-1">Nomor Unik Lainnya</p>
+                <p className="text-sm font-semibold text-gray-800 font-mono flex items-center gap-2">
+                  <Hash size={16} className="text-gray-400"/> {asset.nomor_unique_lain || '-'}
+                </p>
+              </div>
+
               <div>
                 <p className="text-xs text-gray-400 font-medium mb-1">Vendor / Supplier</p>
                 <p className="text-sm font-semibold text-gray-800">{asset.vendor || '-'}</p>
               </div>
               
-              {/* TOMBOL DIGUNAKAN OLEH */}
               <div>
                 <p className="text-xs text-gray-400 font-medium mb-1">Digunakan Oleh</p>
                 {asset.user_detail ? (
@@ -84,6 +120,11 @@ export default function AssetDetail() {
                     <User size={15} />
                     {asset.penanggung_jawab}
                   </button>
+                ) : asset.penanggung_jawab ? (
+                  <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                    <User size={15} className="text-gray-400" />
+                    {asset.penanggung_jawab}
+                  </p>
                 ) : (
                   <p className="text-sm font-semibold text-gray-800">Belum Ada Penanggung Jawab</p>
                 )}
@@ -176,7 +217,6 @@ export default function AssetDetail() {
             </div>
             
             <div className="p-6 flex flex-col items-center">
-              {/* Avatar Initial */}
               <div className="h-20 w-20 bg-blue-100 text-primary rounded-full flex items-center justify-center text-3xl font-bold mb-4 shadow-inner">
                 {asset.user_detail.nama.charAt(0).toUpperCase()}
               </div>

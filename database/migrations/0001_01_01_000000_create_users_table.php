@@ -11,6 +11,15 @@ return new class extends Migration
      */
     public function up(): void
 {
+
+    Schema::create('departments', function (Blueprint $table) {
+                $table->id();
+                $table->string('kode_departemen', 20)->unique();
+                $table->string('nama_departemen', 100);
+                $table->text('deskripsi')->nullable();
+                $table->timestamps();
+            });
+
     Schema::create('users', function (Blueprint $table) {
         $table->id();
         $table->string('nama', 100);
@@ -19,6 +28,7 @@ return new class extends Migration
         $table->timestamp('email_verified_at')->nullable();
         $table->string('password');
         $table->enum('role', ['superadmin', 'admin', 'staff', 'viewer'])->default('staff');
+        $table->foreignId('department_id')->nullable()->constrained('departments')->nullOnDelete();
         $table->boolean('is_active')->default(true);
         $table->timestamp('last_login_at')->nullable();
         $table->rememberToken();
@@ -48,6 +58,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('users');
+        Schema::dropIfExists('departments');
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
     }

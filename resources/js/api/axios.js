@@ -2,11 +2,12 @@ import axios from 'axios';
 
 // Gunakan URL Laragon Anda jika ada, atau biarkan kosong agar memakai domain yang sama
 const axiosInstance = axios.create({
-    baseURL: '/api/v1', // Endpoint API sesuai rancangan
-    headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-    },
+  baseURL: '/api/v1',   
+    // baseURL: 'http://backend-aset.test:8000/api/v1', // <-- Sesuaikan dengan URL backend Anda
+  headers: {
+    'Accept': 'application/json', // <-- INI SANGAT PENTING
+    'Content-Type': 'application/json',
+  },
 });
 
 // Interceptor untuk menyisipkan Bearer Token otomatis

@@ -15,11 +15,17 @@ return new class extends Migration
             $table->id();
             $table->string('kode_aset', 30)->unique();
             $table->string('nama_aset', 150);
+
             $table->foreignId('category_id')->constrained('categories')->restrictOnDelete();
+            $table->foreignId('department_id')->nullable()->constrained('departments')->nullOnDelete(); 
             $table->foreignId('location_id')->constrained('locations')->restrictOnDelete();
             $table->foreignId('vendor_id')->nullable()->constrained('vendors')->nullOnDelete();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete(); // Penanggung jawab
             
+            $table->string('nomor_seri', 100)->nullable()->comment('S/N dari pabrik');
+            $table->string('nomor_rangka_mesin', 100)->nullable()->comment('Untuk kendaraan / mesin berat');
+            $table->string('nomor_unique_lain', 100)->nullable()->comment('Nomor unik lain jika ada');
+
             $table->date('tanggal_pembelian');
             $table->date('tanggal_aktif');
             $table->integer('masa_pakai_tahun');
@@ -28,12 +34,11 @@ return new class extends Migration
             $table->integer('jumlah')->default(1);
             $table->string('satuan', 30)->default('unit');
             
-            $table->string('nomor_seri', 100)->nullable();
-            $table->string('nomor_inventaris', 100)->nullable();
             
             $table->enum('kondisi', ['baik', 'rusak_ringan', 'rusak_berat'])->default('baik');
             $table->enum('status', ['aktif', 'tidak_aktif', 'dalam_perbaikan', 'disposal'])->default('aktif');
             $table->text('keterangan')->nullable();
+            $table->string('foto')->nullable();
             
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();

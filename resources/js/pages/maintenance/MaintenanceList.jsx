@@ -4,6 +4,7 @@ import {
   X, AlertCircle, CheckCircle, Clock, XCircle
 } from 'lucide-react';
 import axiosInstance from '../../api/axios';
+import useAuthStore from '../../store/authStore'; // <-- 1. Import Auth Store
 
 export default function MaintenanceList() {
   const [maintenances, setMaintenances] = useState([]);
@@ -13,15 +14,16 @@ export default function MaintenanceList() {
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // State Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState('add'); // 'add' = lapor, 'edit' = proses
+  const [modalMode, setModalMode] = useState('add');
   const [selectedId, setSelectedId] = useState(null);
   const [formData, setFormData] = useState({});
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Fetch Data Awal
+  // <-- 2. Ambil data user saat ini untuk mengecek role-nya
+  const { user } = useAuthStore();
+
   const fetchData = async () => {
     setIsLoading(true);
     try {
@@ -44,7 +46,6 @@ export default function MaintenanceList() {
     fetchData();
   }, []);
 
-  // Handle Modal Open
   const openModal = (mode, item = null) => {
     setFormError('');
     setModalMode(mode);
@@ -59,7 +60,7 @@ export default function MaintenanceList() {
         tanggal_selesai: item.tanggal_selesai || '',
         tindakan_perbaikan: item.tindakan_perbaikan || '',
         biaya_perbaikan: item.biaya_perbaikan || '',
-        asset_nama: item.asset?.nama_aset, // read-only info
+        asset_nama: item.asset?.nama_aset,
         kode_mnt: item.kode_maintenance
       });
     } else {
@@ -114,13 +115,12 @@ export default function MaintenanceList() {
     }
   };
 
-  // Helper UI
   const getStatusBadge = (status) => {
     switch(status) {
-      case 'selesai': return <span className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold bg-green-50 text-green-700 rounded-full border border-green-200 uppercase"><CheckCircle size={12}/> Selesai</span>;
-      case 'diproses': return <span className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold bg-blue-50 text-blue-700 rounded-full border border-blue-200 uppercase"><Wrench size={12}/> Diproses</span>;
-      case 'dibatalkan': return <span className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold bg-red-50 text-red-700 rounded-full border border-red-200 uppercase"><XCircle size={12}/> Dibatalkan</span>;
-      default: return <span className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold bg-orange-50 text-orange-700 rounded-full border border-orange-200 uppercase"><Clock size={12}/> Pending</span>;
+      case 'selesai': return <span className="flex w-fit items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold bg-green-50 text-green-700 rounded-full border border-green-200 uppercase"><CheckCircle size={12}/> Selesai</span>;
+      case 'diproses': return <span className="flex w-fit items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold bg-blue-50 text-blue-700 rounded-full border border-blue-200 uppercase"><Wrench size={12}/> Diproses</span>;
+      case 'dibatalkan': return <span className="flex w-fit items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold bg-red-50 text-red-700 rounded-full border border-red-200 uppercase"><XCircle size={12}/> Dibatalkan</span>;
+      default: return <span className="flex w-fit items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold bg-orange-50 text-orange-700 rounded-full border border-orange-200 uppercase"><Clock size={12}/> Pending</span>;
     }
   };
 
@@ -132,12 +132,13 @@ export default function MaintenanceList() {
   return (
     <div className="flex flex-col gap-4 md:gap-6 w-full max-w-full overflow-hidden relative pb-10">
       
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800">Pemeliharaan Aset</h1>
           <p className="text-sm md:text-base text-gray-500 mt-1">Laporan kerusakan dan riwayat perbaikan aset.</p>
         </div>
+        
+        {/* Tombol Lapor Kerusakan (Semua role boleh melihat ini) */}
         <button 
           onClick={() => openModal('add')}
           className="flex items-center justify-center gap-2 bg-primary hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap"
@@ -147,10 +148,8 @@ export default function MaintenanceList() {
         </button>
       </div>
 
-      {/* Main Content Area */}
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col w-full overflow-hidden">
         
-        {/* Toolbar */}
         <div className="p-4 md:p-5 border-b border-gray-100 flex flex-col sm:flex-row justify-between gap-3 bg-gray-50/30">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -167,7 +166,6 @@ export default function MaintenanceList() {
           </button>
         </div>
 
-        {/* Data Table */}
         <div className="w-full overflow-x-auto pb-2 min-h-[400px]">
           <table className="w-full text-left text-sm text-gray-600 min-w-[900px]">
             <thead className="text-xs text-gray-500 bg-gray-50 border-b border-gray-200 uppercase tracking-wider">
@@ -204,20 +202,27 @@ export default function MaintenanceList() {
                       {item.biaya_perbaikan ? new Intl.NumberFormat('id-ID').format(item.biaya_perbaikan) : '-'}
                     </td>
                     <td className="px-5 py-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={() => openModal('edit', item)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Proses / Edit"
-                        >
-                          <Edit size={18} />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(item.id, item.kode_maintenance)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Hapus"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
+                      
+                      {/* <-- 3. RBAC: Sembunyikan tombol Edit dan Hapus jika role-nya adalah staff --> */}
+                      {user?.role !== 'staff' ? (
+                        <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={() => openModal('edit', item)}
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Proses / Edit"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(item.id, item.kode_maintenance)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Hapus"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">View Only</span>
+                      )}
+
                     </td>
                   </tr>
                 ))
@@ -227,12 +232,10 @@ export default function MaintenanceList() {
         </div>
       </div>
 
-      {/* --- SMART MODAL --- */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
             
-            {/* Modal Header */}
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                 <Wrench size={20} className="text-primary"/>
@@ -243,7 +246,6 @@ export default function MaintenanceList() {
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className="p-6 overflow-y-auto">
               {formError && (
                 <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm flex items-start gap-2 border border-red-100">
@@ -254,7 +256,6 @@ export default function MaintenanceList() {
               
               <form id="mntForm" onSubmit={handleSubmit} className="flex flex-col gap-5">
                 
-                {/* JIKA MODE TAMBAH (LAPORAN) */}
                 {modalMode === 'add' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="md:col-span-2">
@@ -282,7 +283,6 @@ export default function MaintenanceList() {
                   </div>
                 )}
 
-                {/* JIKA MODE EDIT (PROSES OLEH TEKNISI) */}
                 {modalMode === 'edit' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="md:col-span-2 p-3 bg-blue-50 border border-blue-100 rounded-lg">
@@ -331,7 +331,6 @@ export default function MaintenanceList() {
               </form>
             </div>
 
-            {/* Modal Footer */}
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
               <button type="button" onClick={closeModal} disabled={isSaving} className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                 Batal

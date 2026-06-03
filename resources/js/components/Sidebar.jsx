@@ -7,13 +7,11 @@ import {
   Wrench,
   ArrowRightLeft,
   Trash2,
-  FileText,
   Settings,
   LogOut,
   ChevronsUpDown,
   Database,
   BarChart3,
-  Users
 } from "lucide-react";
 import useAuthStore from "../store/authStore";
 
@@ -44,15 +42,20 @@ export default function Sidebar() {
     navigate('/login');
   };
 
+  // Konfigurasi hak akses menu
   const menuItems = [
-    { name: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
-    { name: "Daftar Aset", icon: Box, path: "/assets" },
-    { name: "Data Master", icon: Database, path: "/master-data" },
-    { name: "Pemeliharaan", icon: Wrench, path: "/maintenances" },
-    { name: "Mutasi Aset", icon: ArrowRightLeft, path: "/transfers" },
-    { name: "Penghapusan", icon: Trash2, path: "/disposals" },
-    { name: "Laporan", icon: BarChart3, path: "/reports" },
+    { name: "Dashboard", icon: LayoutDashboard, path: "/dashboard", roles: ['superadmin', 'admin', 'staff'] },
+    { name: "Daftar Aset", icon: Box, path: "/assets", roles: ['superadmin', 'admin', 'staff'] },
+    { name: "Pemeliharaan", icon: Wrench, path: "/maintenances", roles: ['superadmin', 'admin', 'staff'] },
+    { name: "Mutasi Aset", icon: ArrowRightLeft, path: "/transfers", roles: ['superadmin', 'admin', 'staff'] },
+    // Menu di bawah ini HANYA untuk admin & superadmin
+    { name: "Penghapusan", icon: Trash2, path: "/disposals", roles: ['superadmin', 'admin'] },
+    { name: "Data Master", icon: Database, path: "/master-data", roles: ['superadmin', 'admin'] },
+    { name: "Laporan", icon: BarChart3, path: "/reports", roles: ['superadmin', 'admin'] },
   ];
+
+  // Filter menu berdasarkan role user saat ini
+  const visibleMenu = menuItems.filter(item => item.roles.includes(user?.role));
 
   return (
     <motion.div
@@ -83,7 +86,7 @@ export default function Sidebar() {
 
         {/* Menu Items */}
         <div className="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-1.5 scrollbar-hide">
-          {menuItems.map((item) => {
+          {visibleMenu.map((item) => {
             const isActive = pathname.includes(item.path);
             return (
               <Link

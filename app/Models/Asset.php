@@ -11,10 +11,10 @@ class Asset extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'kode_aset', 'nama_aset', 'category_id', 'location_id', 'vendor_id', 'user_id',
+        'kode_aset', 'nama_aset', 'category_id', 'department_id', 'location_id', 'vendor_id', 'user_id',
+        'nomor_seri', 'nomor_rangka_mesin', 'nomor_unique_lain', // <-- INI YANG BARU
         'tanggal_pembelian', 'tanggal_aktif', 'masa_pakai_tahun', 'harga_perolehan',
-        'nilai_sisa', 'jumlah', 'satuan', 'nomor_seri', 'nomor_inventaris',
-        'kondisi', 'status', 'keterangan', 'created_by', 'updated_by'
+        'nilai_sisa', 'kondisi', 'status', 'keterangan', 'foto', 'created_by', 'updated_by'
     ];
 
     // Relasi
@@ -23,6 +23,10 @@ class Asset extends Model
     public function vendor() { return $this->belongsTo(Vendor::class); }
     public function user() { return $this->belongsTo(User::class); } // Penanggung Jawab
     public function creator() { return $this->belongsTo(User::class, 'created_by'); }
+
+    public function department() {
+        return $this->belongsTo(Department::class);
+    }
 
     public function depreciations() {
         return $this->hasMany(AssetDepreciation::class, 'asset_id');
