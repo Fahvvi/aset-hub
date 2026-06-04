@@ -23,6 +23,11 @@ class AssetResource extends JsonResource
             'lokasi' => $this->whenLoaded('location', function() {
                 return $this->location->nama_lokasi;
             }),
+            'departemen' => $this->department ? $this->department->nama_departemen : null, // <-- TAMBAHKAN INI
+            'nomor_seri' => $this->nomor_seri,
+            'nomor_rangka_mesin' => $this->nomor_rangka_mesin,
+            'nomor_unique_lain' => $this->nomor_unique_lain,
+            
             'vendor' => $this->whenLoaded('vendor', function() {
                 return $this->vendor->nama_vendor;
             }),

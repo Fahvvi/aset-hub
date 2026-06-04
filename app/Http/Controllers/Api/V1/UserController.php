@@ -14,15 +14,14 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $query = User::orderBy('nama', 'asc');
-        $query = User::with('department')->orderBy('nama', 'asc');
-
-        // Jika request meminta hanya user yang aktif (biasanya untuk dropdown form)
-        if ($request->has('active_only') && $request->active_only == 'true') {
-            $query->where('is_active', true);
-        }
-
-        return response()->json($query->get());
+        $users = User::with('department')
+            ->when($request->query('active_only'), function ($query) {
+                return $query->where('is_active', true);
+            })
+            ->orderBy('nama', 'asc')
+            ->get();
+            
+        return response()->json($users);
     }
 
     /**
@@ -34,7 +33,7 @@ class UserController extends Controller
             'nama' => 'required|string|max:100',
             'username' => 'required|string|max:50|unique:users,username',
             'email' => 'required|email|max:100|unique:users,email',
-            'department_id' => 'required|exists:departments,id',
+            'department_id' => 'nullable|exists:departments,id',
             'password' => 'required|string|min:8',
             'role' => 'required|in:superadmin,admin,staff',
             'is_active' => 'required|boolean',
@@ -72,7 +71,7 @@ class UserController extends Controller
             // Validasi unique mengecualikan ID user yang sedang diupdate
             'username' => 'required|string|max:50|unique:users,username,' . $user->id,
             'email' => 'required|email|max:100|unique:users,email,' . $user->id,
-            'department_id' => 'required|exists:departments,id',
+            'department_id' => 'nullable|exists:departments,id',
             'password' => 'nullable|string|min:8',
             'role' => 'required|in:superadmin,admin,staff',
             'is_active' => 'required|boolean',
