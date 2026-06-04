@@ -23,7 +23,8 @@ class AssetResource extends JsonResource
             'lokasi' => $this->whenLoaded('location', function() {
                 return $this->location->nama_lokasi;
             }),
-            'departemen' => $this->department ? $this->department->nama_departemen : null, // <-- TAMBAHKAN INI
+            'departemen' => $this->department ? $this->department->nama_departemen : null, 
+            'department_id' => $this->department_id,// <-- TAMBAHKAN INI
             'nomor_seri' => $this->nomor_seri,
             'nomor_rangka_mesin' => $this->nomor_rangka_mesin,
             'nomor_unique_lain' => $this->nomor_unique_lain,
@@ -34,9 +35,6 @@ class AssetResource extends JsonResource
             'penanggung_jawab' => $this->whenLoaded('user', function() {
                 return $this->user->nama;
             }),
-            'nomor_seri' => $this->nomor_seri,
-            'nomor_rangka_mesin' => $this->nomor_rangka_mesin,
-            'nomor_unique_lain' => $this->nomor_unique_lain,
             
             'user_detail' => $this->when(
                 $this->relationLoaded('user') && in_array(auth()->user()->role ?? '', ['admin', 'superadmin']), 
