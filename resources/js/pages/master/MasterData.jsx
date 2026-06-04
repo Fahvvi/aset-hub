@@ -163,8 +163,14 @@ export default function MasterData() {
     
     // Hilangkan field yang tidak perlu sebelum dikirim
     const payload = { ...formData };
-    if (activeTab === 'user' && !payload.password) {
-      delete payload.password;
+    
+    if (activeTab === 'user') {
+      if (!payload.password) delete payload.password;
+      
+      // PAKSA MENJADI NULL JIKA KOSONG (AGAR LARAVEL MAU MENYIMPANNYA)
+      if (payload.department_id === "") {
+        payload.department_id = null;
+      }
     }
     
     try {

@@ -14,9 +14,12 @@ export default function AssetEdit() {
   const [locations, setLocations] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]); // <-- State Departemen Baru
 
+  // State Form dengan tambahan department_id & Nomor Unik
   const [formData, setFormData] = useState({
-    kode_aset: '', nama_aset: '', category_id: '', location_id: '', vendor_id: '', user_id: '',
+    kode_aset: '', nama_aset: '', category_id: '', department_id: '', location_id: '', vendor_id: '', user_id: '',
+    nomor_seri: '', nomor_rangka_mesin: '', nomor_unique_lain: '',
     tanggal_pembelian: '', tanggal_aktif: '', masa_pakai_tahun: '', harga_perolehan: '',
     nilai_sisa: '', kondisi: '', status: '', keterangan: ''
   });
@@ -25,29 +28,43 @@ export default function AssetEdit() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Ambil master data & data aset secara bersamaan
-        const [catRes, locRes, venRes, userRes, assetRes] = await Promise.all([
+        const [catRes, locRes, venRes, userRes, depRes, assetRes] = await Promise.all([
           axiosInstance.get('/categories').catch(() => ({ data: [] })),
           axiosInstance.get('/locations').catch(() => ({ data: [] })),
           axiosInstance.get('/vendors').catch(() => ({ data: [] })),
           axiosInstance.get('/users').catch(() => ({ data: [] })),
+          axiosInstance.get('/departments').catch(() => ({ data: [] })), // <-- Ambil Data Departemen
           axiosInstance.get(`/assets/${id}`)
         ]);
         
-        setCategories(catRes.data.data || catRes.data || []);
-        setLocations(locRes.data.data || locRes.data || []);
-        setVendors(venRes.data.data || venRes.data || []);
-        setUsers(userRes.data.data || userRes.data || []);
+        // Fungsi Kebal Error
+        const safeArray = (res) => {
+          if (Array.isArray(res)) return res;
+          if (res?.data && Array.isArray(res.data)) return res.data;
+          if (res?.data?.data && Array.isArray(res.data.data)) return res.data.data;
+          return [];
+        };
+
+        setCategories(safeArray(catRes));
+        setLocations(safeArray(locRes));
+        setVendors(safeArray(venRes));
+        setUsers(safeArray(userRes));
+        setDepartments(safeArray(depRes)); // <-- Set State Departemen
 
         const assetData = assetRes.data.data || assetRes.data;
-        // Pre-fill form (ubah null jadi string kosong agar React tidak warning)
+        
+        // Pre-fill form
         setFormData({
           kode_aset: assetData.kode_aset || '',
           nama_aset: assetData.nama_aset || '',
           category_id: assetData.category_id || '',
+          department_id: assetData.department_id || '', // <-- Pre-fill Departemen
           location_id: assetData.location_id || '',
           vendor_id: assetData.vendor_id || '',
           user_id: assetData.user_id || '',
+          nomor_seri: assetData.nomor_seri || '', // <-- Pre-fill S/N
+          nomor_rangka_mesin: assetData.nomor_rangka_mesin || '', // <-- Pre-fill Rangka
+          nomor_unique_lain: assetData.nomor_unique_lain || '', // <-- Pre-fill Nomor Unik
           tanggal_pembelian: assetData.tanggal_pembelian || '',
           tanggal_aktif: assetData.tanggal_aktif || '',
           masa_pakai_tahun: assetData.masa_pakai_tahun || '',
@@ -83,11 +100,10 @@ export default function AssetEdit() {
     setError('');
 
     const payload = new FormData();
-    // Trik Laravel: Kirim sebagai POST, tapi beri tahu Laravel ini adalah PUT
     payload.append('_method', 'PUT'); 
     
     Object.keys(formData).forEach(key => {
-      if (formData[key] !== null && formData[key] !== '') {
+      if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
         payload.append(key, formData[key]);
       }
     });
@@ -149,11 +165,44 @@ export default function AssetEdit() {
               </select>
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Departemen <span className="text-red-500">*</span></label>
+              <select name="department_id" required value={formData.department_id} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
+                <option value="" disabled>-- Pilih Departemen --</option>
+                {departments.map(d => <option key={d.id} value={d.id}>{d.nama_departemen}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Lokasi <span className="text-red-500">*</span></label>
               <select name="location_id" required value={formData.location_id} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
                 <option value="" disabled>-- Pilih Lokasi --</option>
                 {locations.map(l => <option key={l.id} value={l.id}>{l.nama_lokasi}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Vendor Pengadaan</label>
+              <select name="vendor_id" value={formData.vendor_id} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
+                <option value="">-- Tidak Ada / Pilih Vendor --</option>
+                {vendors.map(v => <option key={v.id} value={v.id}>{v.nama_vendor}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Identitas Unik */}
+        <div className="bg-white p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-5">
+          <h3 className="font-bold text-gray-800 border-b pb-2">Identitas Unik (Opsional)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Nomor Seri (S/N) Pabrik</label>
+              <input type="text" name="nomor_seri" value={formData.nomor_seri} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="Contoh: SN-1234567890" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Nomor Rangka / Mesin</label>
+              <input type="text" name="nomor_rangka_mesin" value={formData.nomor_rangka_mesin} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="Khusus untuk kendaraan berat" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Nomor Unik Lainnya</label>
+              <input type="text" name="nomor_unique_lain" value={formData.nomor_unique_lain} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="MAC Address / BPKB / dll" />
             </div>
           </div>
         </div>
@@ -201,6 +250,7 @@ export default function AssetEdit() {
                 <option value="dalam_perbaikan">Dalam Perbaikan</option>
               </select>
             </div>
+            
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Digunakan oleh (Opsional)</label>
               <select name="user_id" value={formData.user_id} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
@@ -208,6 +258,7 @@ export default function AssetEdit() {
                 {users.map(u => <option key={u.id} value={u.id}>{u.nama} ({u.role})</option>)}
               </select>
             </div>
+
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Foto Aset (Opsional - Upload jika ingin mengganti)</label>
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex items-center justify-center bg-gray-50/50">

@@ -33,13 +33,17 @@ export default function AssetList() {
     if (assets.length === 0) return alert("Tidak ada data untuk di-export.");
     
     let csvContent = "data:text/csv;charset=utf-8,";
-    // Header CSV Diperbarui
     csvContent += "Kode Aset,Nama Aset,S/N,No Rangka,No Unik Lain,Kategori,Departemen,Lokasi,Vendor,Harga,Tanggal Beli,Kondisi,Status\n";
     
     assets.forEach(row => {
       const harga = row.harga_perolehan || 0;
-      // Row CSV Diperbarui
-      const csvRow = `"${row.kode_aset}","${row.nama_aset}","${row.nomor_seri || '-'}","${row.nomor_rangka_mesin || '-'}","${row.nomor_unique_lain || '-'}","${row.kategori}","${row.departemen || '-'}","${row.lokasi}","${row.vendor || '-'}","${harga}","${row.tanggal_pembelian}","${row.kondisi}","${row.status}"`;
+      // Gunakan pembacaan ganda agar anti-error
+      const kategori = row.kategori || row.category?.nama_kategori || '-';
+      const departemen = row.departemen || row.department?.nama_departemen || '-';
+      const lokasi = row.lokasi || row.location?.nama_lokasi || '-';
+      const vendor = row.vendor || row.vendor_detail?.nama_vendor || '-';
+
+      const csvRow = `"${row.kode_aset}","${row.nama_aset}","${row.nomor_seri || '-'}","${row.nomor_rangka_mesin || '-'}","${row.nomor_unique_lain || '-'}","${kategori}","${departemen}","${lokasi}","${vendor}","${harga}","${row.tanggal_pembelian}","${row.kondisi}","${row.status}"`;
       csvContent += csvRow + "\n";
     });
 
@@ -74,13 +78,17 @@ export default function AssetList() {
     }
   };
 
-  const filteredAssets = assets.filter(asset => 
-    asset.nama_aset?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    asset.kode_aset?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    asset.kategori?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    asset.nomor_seri?.toLowerCase().includes(searchTerm.toLowerCase()) || // Bisa cari via S/N
-    asset.departemen?.toLowerCase().includes(searchTerm.toLowerCase())    // Bisa cari via Departemen
-  );
+  const filteredAssets = assets.filter(asset => {
+    const term = searchTerm.toLowerCase();
+    const deptName = (asset.departemen || asset.department?.nama_departemen || '').toLowerCase();
+    const catName = (asset.kategori || asset.category?.nama_kategori || '').toLowerCase();
+
+    return asset.nama_aset?.toLowerCase().includes(term) ||
+           asset.kode_aset?.toLowerCase().includes(term) ||
+           catName.includes(term) ||
+           asset.nomor_seri?.toLowerCase().includes(term) ||
+           deptName.includes(term);
+  });
 
   const getStatusBadge = (status) => {
     switch(status) {
@@ -104,7 +112,6 @@ export default function AssetList() {
   return (
     <div className="flex flex-col gap-4 md:gap-6 w-full max-w-full overflow-hidden relative">
       
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800">Daftar Aset</h1>
@@ -120,13 +127,11 @@ export default function AssetList() {
             </button>
 
             <button onClick={handleExport} className="flex items-center justify-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap">
-              <Download size={18} />
-              Export CSV
+              <Download size={18} /> Export CSV
             </button>
 
             <Link to="/assets/create" className="flex items-center justify-center gap-2 bg-primary hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap">
-              <Plus size={18} />
-              Tambah Aset
+              <Plus size={18} /> Tambah Aset
             </Link>
           </div>
         )}
@@ -193,12 +198,13 @@ export default function AssetList() {
                       </div>
                     </td>
 
+                    {/* PEMBACAAN DATA DEPARTEMEN DI TINGKATKAN DI SINI */}
                     <td className="px-5 py-4 whitespace-nowrap">
                       <p className="font-medium text-gray-800 flex items-center gap-1.5 mb-1">
-                        <Briefcase size={14} className="text-primary"/> {asset.departemen || '-'}
+                        <Briefcase size={14} className="text-primary"/> {asset.departemen || asset.department?.nama_departemen || '-'}
                       </p>
                       <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
-                        <MapPin size={14} /> {asset.lokasi || '-'}
+                        <MapPin size={14} /> {asset.lokasi || asset.location?.nama_lokasi || '-'}
                       </p>
                     </td>
 
