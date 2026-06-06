@@ -37,11 +37,11 @@ export default function AssetList() {
     
     assets.forEach(row => {
       const harga = row.harga_perolehan || 0;
-      // Gunakan pembacaan ganda agar anti-error
-      const kategori = row.kategori || row.category?.nama_kategori || '-';
-      const departemen = row.departemen || row.department?.nama_departemen || '-';
-      const lokasi = row.lokasi || row.location?.nama_lokasi || '-';
-      const vendor = row.vendor || row.vendor_detail?.nama_vendor || '-';
+      // Gunakan pembacaan yang sesuai dengan key dari AssetResource.php
+      const kategori = row.kategori || '-';
+      const departemen = row.departemen || '-';
+      const lokasi = row.lokasi || '-';
+      const vendor = row.vendor || '-';
 
       const csvRow = `"${row.kode_aset}","${row.nama_aset}","${row.nomor_seri || '-'}","${row.nomor_rangka_mesin || '-'}","${row.nomor_unique_lain || '-'}","${kategori}","${departemen}","${lokasi}","${vendor}","${harga}","${row.tanggal_pembelian}","${row.kondisi}","${row.status}"`;
       csvContent += csvRow + "\n";
@@ -80,8 +80,9 @@ export default function AssetList() {
 
   const filteredAssets = assets.filter(asset => {
     const term = searchTerm.toLowerCase();
-    const deptName = (asset.departemen || asset.department?.nama_departemen || '').toLowerCase();
-    const catName = (asset.kategori || asset.category?.nama_kategori || '').toLowerCase();
+    // Gunakan pembacaan yang sesuai dengan key dari AssetResource.php
+    const deptName = (asset.departemen || '').toLowerCase();
+    const catName = (asset.kategori || '').toLowerCase();
 
     return asset.nama_aset?.toLowerCase().includes(term) ||
            asset.kode_aset?.toLowerCase().includes(term) ||
@@ -198,13 +199,13 @@ export default function AssetList() {
                       </div>
                     </td>
 
-                    {/* PEMBACAAN DATA DEPARTEMEN DI TINGKATKAN DI SINI */}
+                    {/* PEMBACAAN DATA DEPARTEMEN DI SINI (Sesuai dengan AssetResource.php) */}
                     <td className="px-5 py-4 whitespace-nowrap">
                       <p className="font-medium text-gray-800 flex items-center gap-1.5 mb-1">
-                        <Briefcase size={14} className="text-primary"/> {asset.departemen || asset.department?.nama_departemen || '-'}
+                        <Briefcase size={14} className="text-primary"/> {asset.departemen || '-'}
                       </p>
                       <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
-                        <MapPin size={14} /> {asset.lokasi || asset.location?.nama_lokasi || '-'}
+                        <MapPin size={14} /> {asset.lokasi || '-'}
                       </p>
                     </td>
 

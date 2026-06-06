@@ -39,13 +39,38 @@ class AssetService
     {
         DB::beginTransaction();
         try {
+            // Set ID pembuat aset
             $data['created_by'] = auth()->id();
             
-            // CEGAH ELOQUENT MENYIMPAN PATH .TMP
+            // Cegah Eloquent menyimpan path .tmp dari file upload
             if (isset($data['foto'])) {
                 unset($data['foto']);
             }
             
+            // =======================================================
+            // MESIN GENERATOR KODE ASET OTOMATIS (SDI-YYYY-XXXX)
+            // =======================================================
+            if (empty($data['kode_aset'])) {
+                $tahun = date('Y'); // Mengambil tahun saat ini (misal: 2026)
+                
+                // Cari aset terakhir di tahun yang sama
+                $asetTerakhir = \App\Models\Asset::where('kode_aset', 'like', "SDI-{$tahun}-%")
+                                                 ->orderBy('id', 'desc')
+                                                 ->first();
+                $urutan = 1;
+                
+                // Jika sudah ada aset sebelumnya, ambil angka terakhir dan tambah 1
+                if ($asetTerakhir) {
+                    $parts = explode('-', $asetTerakhir->kode_aset);
+                    $urutan = (int) end($parts) + 1;
+                }
+                
+                // Format kode: SDI-2026-0001
+                $data['kode_aset'] = 'SDI-' . $tahun . '-' . str_pad($urutan, 4, '0', STR_PAD_LEFT);
+            }
+            // =======================================================
+
+            // Simpan ke database (Sekarang $data['kode_aset'] sudah pasti ada isinya!)
             $asset = $this->assetRepository->create($data);
 
             // Handle Upload Foto
@@ -53,7 +78,6 @@ class AssetService
 
             DB::commit();
             
-            // Wajib refresh agar API memuat path foto terbaru dari Database
             return $asset->refresh(); 
         } catch (Exception $e) {
             DB::rollBack();
