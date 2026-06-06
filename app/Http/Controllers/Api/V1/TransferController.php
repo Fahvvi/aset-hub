@@ -12,12 +12,17 @@ use App\Http\Requests\Transfer\StoreTransferRequest;
 class TransferController extends Controller
 {
     public function index()
-    {
-        $transfers = AssetTransfer::with(['asset', 'dariLokasi', 'keLokasi', 'dariUser', 'keUser', 'approver'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-        return response()->json($transfers);
-    }
+{
+    $transfers = \App\Models\AssetTransfer::with([
+        'asset', 
+        'dariLokasi', 
+        'keLokasi', 
+        'dariUser', 
+        'keUser'
+    ])->orderBy('created_at', 'desc')->get();
+
+    return response()->json($transfers);
+}
 
     public function store(StoreTransferRequest $request)
     {

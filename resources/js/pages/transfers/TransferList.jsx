@@ -19,7 +19,6 @@ export default function TransferList() {
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Ambil data user dari Zustand untuk RBAC
   const { user } = useAuthStore();
 
   const fetchData = async () => {
@@ -31,10 +30,10 @@ export default function TransferList() {
         axiosInstance.get('/locations').catch(() => ({ data: [] })),
         axiosInstance.get('/users').catch(() => ({ data: [] }))
       ]);
-      setTransfers(trfRes.data.data || trfRes.data);
-      setAssets(astRes.data.data || astRes.data);
-      setLocations(locRes.data.data || locRes.data);
-      setUsers(usrRes.data.data || usrRes.data);
+      setTransfers(trfRes.data.data || trfRes.data || []);
+      setAssets(astRes.data.data || astRes.data || []);
+      setLocations(locRes.data.data || locRes.data || []);
+      setUsers(usrRes.data.data || usrRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -68,7 +67,7 @@ export default function TransferList() {
     } catch (error) {
       setFormError(error.response?.data?.message || 'Gagal mengajukan pemindahan.');
     } finally {
-      setIsSaving(false);
+      setIsLoading(false);
     }
   };
 
@@ -91,15 +90,14 @@ export default function TransferList() {
     }
   };
 
-  const filteredData = transfers.filter(t => 
+  const filteredData = Array.isArray(transfers) ? transfers.filter(t => 
     t.asset?.nama_aset?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.asset?.kode_aset?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) : [];
 
   return (
     <div className="flex flex-col gap-4 md:gap-6 w-full max-w-full overflow-hidden relative pb-10">
       
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800">Pemindahan Aset</h1>
@@ -110,7 +108,6 @@ export default function TransferList() {
         </button>
       </div>
 
-      {/* Main Content Area */}
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col w-full overflow-hidden">
         
         <div className="p-4 md:p-5 border-b border-gray-100 flex flex-col sm:flex-row justify-between gap-3 bg-gray-50/30">
@@ -120,7 +117,6 @@ export default function TransferList() {
           </div>
         </div>
 
-        {/* Tabel Data (Mobile Responsive dgn whitespace-nowrap) */}
         <div className="w-full overflow-x-auto pb-2 min-h-[400px]">
           <table className="w-full text-left text-sm text-gray-600 min-w-[900px]">
             <thead className="text-xs text-gray-500 bg-gray-50 border-b border-gray-200 uppercase tracking-wider">
@@ -139,46 +135,52 @@ export default function TransferList() {
               ) : filteredData.length === 0 ? (
                 <tr><td colSpan="6" className="px-5 py-12 text-center text-gray-400">Belum ada riwayat mutasi aset.</td></tr>
               ) : (
-                filteredData.map((item) => (
-                  <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <p className="font-semibold text-gray-800">{item.asset?.nama_aset}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{item.asset?.kode_aset}</p>
-                    </td>
-                    <td className="px-5 py-4 whitespace-nowrap bg-red-50/30">
-                      <p className="font-medium text-red-800">{item.dariLokasi?.nama_lokasi}</p>
-                      <p className="text-[10px] text-red-600/70 uppercase mt-0.5 font-bold">PJ: {item.dariUser?.nama || '-'}</p>
-                    </td>
-                    <td className="px-5 py-4 whitespace-nowrap bg-green-50/30 border-l border-r border-gray-50">
-                      <p className="font-medium text-green-800">{item.keLokasi?.nama_lokasi}</p>
-                      <p className="text-[10px] text-green-600/70 uppercase mt-0.5 font-bold">PJ: {item.keUser?.nama || '-'}</p>
-                    </td>
-                    <td className="px-5 py-4">
-                      <p className="font-medium whitespace-nowrap text-gray-800">{item.tanggal_transfer}</p>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 max-w-[200px]" title={item.alasan}>{item.alasan}</p>
-                    </td>
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      {getStatusBadge(item.status)}
-                    </td>
-                    
-                    <td className="px-5 py-4 text-right whitespace-nowrap">
-                      {item.status === 'pending' ? (
-                        user?.role !== 'staff' ? (
-                          // ADMIN/SUPERADMIN: Bisa Approve & Reject
-                          <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => handleApproveReject(item.id, 'approve')} className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors" title="Setujui Mutasi"><Check size={18} /></button>
-                            <button onClick={() => handleApproveReject(item.id, 'reject')} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Tolak Mutasi"><RejectIcon size={18} /></button>
-                          </div>
+                filteredData.map((item) => {
+                  // PENGAMAN GANDA UNTUK MEMBACA RELASI LARAVEL (SNAKE_CASE & CAMELCASE)
+                  const namaLokasiAsal = item.dariLokasi?.nama_lokasi || item.dari_lokasi?.nama_lokasi || '-';
+                  const namaLokasiTujuan = item.keLokasi?.nama_lokasi || item.ke_lokasi?.nama_lokasi || '-';
+                  const namaUserAsal = item.dariUser?.nama || item.dari_user?.nama || '-';
+                  const namaUserTujuan = item.keUser?.nama || item.ke_user?.nama || '-';
+
+                  return (
+                    <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <p className="font-semibold text-gray-800">{item.asset?.nama_aset || '-'}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{item.asset?.kode_aset || '-'}</p>
+                      </td>
+                      <td className="px-5 py-4 whitespace-nowrap bg-red-50/30">
+                        <p className="font-medium text-red-800">{namaLokasiAsal}</p>
+                        <p className="text-[10px] text-red-600/70 uppercase mt-0.5 font-bold">PJ: {namaUserAsal}</p>
+                      </td>
+                      <td className="px-5 py-4 whitespace-nowrap bg-green-50/30 border-l border-r border-gray-50">
+                        <p className="font-medium text-green-800">{namaLokasiTujuan}</p>
+                        <p className="text-[10px] text-green-600/70 uppercase mt-0.5 font-bold">PJ: {namaUserTujuan}</p>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="font-medium whitespace-nowrap text-gray-800">{item.tanggal_transfer}</p>
+                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 max-w-[200px]" title={item.alasan}>{item.alasan}</p>
+                      </td>
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        {getStatusBadge(item.status)}
+                      </td>
+                      
+                      <td className="px-5 py-4 text-right whitespace-nowrap">
+                        {item.status === 'pending' ? (
+                          user?.role !== 'staff' ? (
+                            <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => handleApproveReject(item.id, 'approve')} className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors" title="Setujui Mutasi"><Check size={18} /></button>
+                              <button onClick={() => handleApproveReject(item.id, 'reject')} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Tolak Mutasi"><RejectIcon size={18} /></button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-orange-500 italic font-medium">Menunggu Approval</span>
+                          )
                         ) : (
-                          // STAFF: Hanya bisa melihat status menunggu
-                          <span className="text-xs text-orange-500 italic font-medium">Menunggu Approval</span>
-                        )
-                      ) : (
-                        <span className="text-xs text-gray-400 italic">Terkunci</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                          <span className="text-xs text-gray-400 italic">Terkunci</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

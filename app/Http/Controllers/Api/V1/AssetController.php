@@ -48,4 +48,17 @@ class AssetController extends Controller
         $this->assetService->deleteAsset($id);
         return response()->json(['message' => 'Aset berhasil dihapus']);
     }
+
+    public function scan($kode_aset)
+    {
+        $asset = \App\Models\Asset::with(['category', 'location', 'vendor', 'department', 'user'])
+            ->where('kode_aset', $kode_aset)
+            ->first();
+
+        if (!$asset) {
+            return response()->json(['message' => 'Aset tidak ditemukan atau kode tidak valid'], 404);
+        }
+
+        return new \App\Http\Resources\AssetResource($asset);
+    }
 }

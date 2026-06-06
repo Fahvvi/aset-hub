@@ -15,6 +15,8 @@ Route::prefix('v1')->group(function () {
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
     });
 
+    Route::get('scan/{kode_aset}', [\App\Http\Controllers\Api\V1\AssetController::class, 'scan']);
+
     // --- 2. PROTECTED ROUTES (BUTUH BEARER TOKEN) ---
     Route::middleware('auth:sanctum')->group(function () {
         

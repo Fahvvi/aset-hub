@@ -7,6 +7,7 @@ const axiosInstance = axios.create({
   headers: {
     'Accept': 'application/json', // <-- INI SANGAT PENTING
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': '69420',
   },
 });
 

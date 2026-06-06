@@ -24,6 +24,8 @@ import DisposalList from './pages/disposals/DisposalList';
 import ReportDashboard from './pages/reports/ReportDashboard';
 import Settings from './pages/settings/Setting';
 
+import PublicAssetScan from './pages/assets/PublicAssetScan';
+
 const App = () => {
     // Memastikan status login bertahan saat halaman di-refresh
     const { fetchUser, token } = useAuthStore();
@@ -37,6 +39,7 @@ const App = () => {
                 {/* Rute Publik */}
                 <Route path="/" element={<Navigate to="/login" replace />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/scan/:kode" element={<PublicAssetScan />} />
                 
                 {/* Rute Terproteksi (Dibungkus oleh DashboardLayout) */}
                 <Route element={<DashboardLayout />}>
