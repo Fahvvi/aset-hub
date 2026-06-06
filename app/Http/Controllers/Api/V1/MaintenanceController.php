@@ -85,6 +85,12 @@ class MaintenanceController extends Controller
         ]);
 
         $maintenance->update($validated); // Akan men-trigger Observer jika status=selesai
+        
+            if ($validated['status'] === 'selesai') {
+            $maintenance->asset->update(['status' => 'aktif']);
+        } elseif ($validated['status'] === 'diproses') {
+            $maintenance->asset->update(['status' => 'dalam_perbaikan']);
+        }
 
         return response()->json(['message' => 'Data pemeliharaan berhasil diperbarui', 'data' => $maintenance]);
     }

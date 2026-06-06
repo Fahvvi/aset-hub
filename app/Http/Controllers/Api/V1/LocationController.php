@@ -7,6 +7,7 @@ use App\Http\Requests\Location\StoreLocationRequest;
 use App\Http\Requests\Location\UpdateLocationRequest;
 use App\Http\Resources\LocationResource;
 use App\Services\LocationService;
+use Illuminate\Database\QueryException; // <-- WAJIB TAMBAHKAN IMPORT INI
 
 class LocationController extends Controller
 {
@@ -36,7 +37,29 @@ class LocationController extends Controller
     }
 
     public function destroy($id) {
-        $this->locationService->deleteLocation($id);
-        return response()->json(['message' => 'Lokasi berhasil dihapus']);
+        try {
+            $this->locationService->deleteLocation($id);
+            return response()->json(['message' => 'Lokasi berhasil dihapus']);
+            
+        } catch (QueryException $e) {
+            // Menangkap error Foreign Key Constraint dari PostgreSQL (23001 atau 23503)
+            if ($e->getCode() == '23001' || $e->getCode() == '23503') {
+                return response()->json([
+                    'message' => 'Lokasi tidak dapat dihapus karena masih ada Aset yang terdaftar di ruangan ini. Silakan pindahkan atau hapus aset terkait terlebih dahulu.'
+                ], 400); // 400 Bad Request
+            }
+            
+            // Jika ada error database lain
+            return response()->json([
+                'message' => 'Terjadi kesalahan pada database.',
+                'error' => $e->getMessage()
+            ], 500);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Gagal menghapus lokasi.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
