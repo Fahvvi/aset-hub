@@ -31,7 +31,9 @@ class AssetService
 
         return $query->get();
     }
-    public function getAssetById($id) { return $this->assetRepository->findById($id); }
+    public function getAssetById($id) { 
+        return Asset::with(['category', 'location', 'vendor', 'department', 'user'])->findOrFail($id);
+        }
 
     public function createAsset(array $data, $files = [])
     {
@@ -76,15 +78,17 @@ class AssetService
     private function handleFileUploads($asset, $files)
     {
         if (isset($files['foto'])) {
+            // 1. Cek dan hapus FOTO LAMA fisik dari folder (jika ada)
+            if ($asset->foto && Storage::disk('public')->exists($asset->foto)) {
+                Storage::disk('public')->delete($asset->foto);
+            }
+
+            // 2. Simpan FOTO BARU fisik ke folder
             $path = $files['foto']->store("assets/{$asset->id}", 'public');
-            $asset->documents()->create([
-                'nama_file' => $files['foto']->getClientOriginalName(),
-                'tipe_dokumen' => 'foto',
-                'path' => $path,
-                'ukuran_kb' => round($files['foto']->getSize() / 1024),
-                'mime_type' => $files['foto']->getMimeType(),
-                'uploaded_by' => auth()->id(),
-            ]);
+
+            // 3. Simpan path foto ke dalam kolom 'foto' di tabel 'assets' langsung
+            $asset->foto = $path;
+            $asset->save();
         }
     }
 }

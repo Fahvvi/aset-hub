@@ -14,9 +14,8 @@ export default function AssetEdit() {
   const [locations, setLocations] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [users, setUsers] = useState([]);
-  const [departments, setDepartments] = useState([]); // <-- State Departemen Baru
+  const [departments, setDepartments] = useState([]); 
 
-  // State Form dengan tambahan department_id & Nomor Unik
   const [formData, setFormData] = useState({
     kode_aset: '', nama_aset: '', category_id: '', department_id: '', location_id: '', vendor_id: '', user_id: '',
     nomor_seri: '', nomor_rangka_mesin: '', nomor_unique_lain: '',
@@ -24,6 +23,7 @@ export default function AssetEdit() {
     nilai_sisa: '', kondisi: '', status: '', keterangan: ''
   });
   const [fotoFile, setFotoFile] = useState(null);
+  const [fotoLama, setFotoLama] = useState(null); // Menampilkan foto lama
 
   useEffect(() => {
     const fetchData = async () => {
@@ -33,11 +33,10 @@ export default function AssetEdit() {
           axiosInstance.get('/locations').catch(() => ({ data: [] })),
           axiosInstance.get('/vendors').catch(() => ({ data: [] })),
           axiosInstance.get('/users').catch(() => ({ data: [] })),
-          axiosInstance.get('/departments').catch(() => ({ data: [] })), // <-- Ambil Data Departemen
+          axiosInstance.get('/departments').catch(() => ({ data: [] })), 
           axiosInstance.get(`/assets/${id}`)
         ]);
         
-        // Fungsi Kebal Error
         const safeArray = (res) => {
           if (Array.isArray(res)) return res;
           if (res?.data && Array.isArray(res.data)) return res.data;
@@ -49,22 +48,24 @@ export default function AssetEdit() {
         setLocations(safeArray(locRes));
         setVendors(safeArray(venRes));
         setUsers(safeArray(userRes));
-        setDepartments(safeArray(depRes)); // <-- Set State Departemen
+        setDepartments(safeArray(depRes)); 
 
         const assetData = assetRes.data.data || assetRes.data;
         
-        // Pre-fill form
+        // Simpan URL foto lama untuk ditampilkan
+        if(assetData.foto_url) setFotoLama(assetData.foto_url);
+
         setFormData({
           kode_aset: assetData.kode_aset || '',
           nama_aset: assetData.nama_aset || '',
           category_id: assetData.category_id || '',
-          department_id: assetData.department_id || '', // <-- Pre-fill Departemen
+          department_id: assetData.department_id || '', 
           location_id: assetData.location_id || '',
           vendor_id: assetData.vendor_id || '',
           user_id: assetData.user_id || '',
-          nomor_seri: assetData.nomor_seri || '', // <-- Pre-fill S/N
-          nomor_rangka_mesin: assetData.nomor_rangka_mesin || '', // <-- Pre-fill Rangka
-          nomor_unique_lain: assetData.nomor_unique_lain || '', // <-- Pre-fill Nomor Unik
+          nomor_seri: assetData.nomor_seri || '', 
+          nomor_rangka_mesin: assetData.nomor_rangka_mesin || '', 
+          nomor_unique_lain: assetData.nomor_unique_lain || '', 
           tanggal_pembelian: assetData.tanggal_pembelian || '',
           tanggal_aktif: assetData.tanggal_aktif || '',
           masa_pakai_tahun: assetData.masa_pakai_tahun || '',
@@ -100,34 +101,45 @@ export default function AssetEdit() {
     setError('');
 
     const payload = new FormData();
+    
+    // Trik Wajib Laravel: Kirim sebagai POST, tapi beri header spoofing PUT
     payload.append('_method', 'PUT'); 
     
     Object.keys(formData).forEach(key => {
+      // Pastikan angka 0 tetap terkirim, tapi string kosong dibuang
       if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
         payload.append(key, formData[key]);
       }
     });
     
-    if (fotoFile) payload.append('foto', fotoFile);
+    // Jika ada file foto baru, lampirkan
+    if (fotoFile) {
+        payload.append('foto', fotoFile);
+    }
 
     try {
+      // PENTING: Gunakan axiosInstance.post, BUKAN .put (karena FormData + File = POST)
       await axiosInstance.post(`/assets/${id}`, payload, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 
+            'Content-Type': 'multipart/form-data',
+            'Accept': 'application/json'
+        }
       });
       navigate('/assets'); 
     } catch (err) {
+      console.error(err.response);
       setError(err.response?.data?.message || 'Gagal menyimpan pembaruan aset.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isFetching) return <div className="p-8 text-center text-gray-500">Memuat data untuk diedit...</div>;
+  if (isFetching) return <div className="p-8 text-center text-gray-500 flex justify-center mt-20">Memuat data untuk diedit...</div>;
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto pb-10">
-      <div className="flex items-center gap-4">
-        <Link to="/assets" className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
+    <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto pb-10 px-2 sm:px-0">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <Link to="/assets" className="p-2 w-fit bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
           <ArrowLeft size={20} />
         </Link>
         <div>
@@ -146,9 +158,9 @@ export default function AssetEdit() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         
         {/* Informasi Dasar */}
-        <div className="bg-white p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-5">
+        <div className="bg-white p-4 sm:p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-4 sm:gap-5">
           <h3 className="font-bold text-gray-800 border-b pb-2">Informasi Dasar</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Nama Aset <span className="text-red-500">*</span></label>
               <input type="text" name="nama_aset" required value={formData.nama_aset} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" />
@@ -189,28 +201,28 @@ export default function AssetEdit() {
         </div>
 
         {/* Identitas Unik */}
-        <div className="bg-white p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-5">
+        <div className="bg-white p-4 sm:p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-4 sm:gap-5">
           <h3 className="font-bold text-gray-800 border-b pb-2">Identitas Unik (Opsional)</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Nomor Seri (S/N) Pabrik</label>
               <input type="text" name="nomor_seri" value={formData.nomor_seri} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="Contoh: SN-1234567890" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Nomor Rangka / Mesin</label>
-              <input type="text" name="nomor_rangka_mesin" value={formData.nomor_rangka_mesin} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="Khusus untuk kendaraan berat" />
+              <input type="text" name="nomor_rangka_mesin" value={formData.nomor_rangka_mesin} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="Khusus kendaraan" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Nomor Unik Lainnya</label>
-              <input type="text" name="nomor_unique_lain" value={formData.nomor_unique_lain} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="MAC Address / BPKB / dll" />
+              <input type="text" name="nomor_unique_lain" value={formData.nomor_unique_lain} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" placeholder="MAC / BPKB / dll" />
             </div>
           </div>
         </div>
 
         {/* Nilai & Masa Pakai */}
-        <div className="bg-white p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-5">
+        <div className="bg-white p-4 sm:p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-4 sm:gap-5">
           <h3 className="font-bold text-gray-800 border-b pb-2">Nilai & Masa Pakai</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Harga Perolehan (Rp) <span className="text-red-500">*</span></label>
               <input type="number" name="harga_perolehan" required min="0" value={formData.harga_perolehan} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none" />
@@ -231,9 +243,9 @@ export default function AssetEdit() {
         </div>
 
         {/* Status, Pengguna & Foto */}
-        <div className="bg-white p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-5">
+        <div className="bg-white p-4 sm:p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-4 sm:gap-5">
           <h3 className="font-bold text-gray-800 border-b pb-2">Status & Penggunaan</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Kondisi</label>
               <select name="kondisi" value={formData.kondisi} onChange={handleChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
@@ -259,12 +271,20 @@ export default function AssetEdit() {
               </select>
             </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Foto Aset (Opsional - Upload jika ingin mengganti)</label>
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex items-center justify-center bg-gray-50/50">
-                <input type="file" accept="image/jpeg, image/png, image/jpg" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100" />
+            <div className="md:col-span-2 flex flex-col sm:flex-row gap-4">
+              {fotoLama && (
+                <div className="w-full sm:w-32 h-32 shrink-0 bg-gray-100 rounded-lg border border-gray-200 overflow-hidden">
+                    <img src={fotoLama} alt="Foto Lama" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Ubah Foto Aset (Biarkan kosong jika tidak diubah)</label>
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 flex items-center justify-center bg-gray-50/50 w-full">
+                    <input type="file" accept="image/jpeg, image/png, image/jpg" onChange={handleFileChange} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100 overflow-hidden" />
+                </div>
               </div>
             </div>
+
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Keterangan Tambahan</label>
               <textarea name="keterangan" value={formData.keterangan} onChange={handleChange} rows="3" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"></textarea>
@@ -272,12 +292,12 @@ export default function AssetEdit() {
           </div>
         </div>
 
-        {/* Tombol Aksi */}
-        <div className="flex justify-end gap-3 mt-2">
-          <Link to="/assets" className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors">
+        {/* Tombol Aksi - Fixed At Bottom on Mobile */}
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-2 mb-10 sm:mb-0">
+          <Link to="/assets" className="px-6 py-3 sm:py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors text-center">
             Batal
           </Link>
-          <button type="submit" disabled={isLoading} className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50">
+          <button type="submit" disabled={isLoading} className="flex items-center justify-center gap-2 px-6 py-3 sm:py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50">
             <Save size={18} />
             {isLoading ? 'Menyimpan...' : 'Simpan Perubahan'}
           </button>
