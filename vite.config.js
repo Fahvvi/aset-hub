@@ -8,11 +8,16 @@ export default defineConfig({
             input: ['resources/css/app.css', 'resources/js/app.jsx'],
             refresh: true,
         }),
+        basicSsl(),
         react(), 
     ],
     server: {
-        watch: {
-            ignored: ['**/storage/framework/views/**'],
-        },
+    https: true, // Mengaktifkan mode HTTPS pada server dev
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    },
+    allowedHosts: true
     },
 });

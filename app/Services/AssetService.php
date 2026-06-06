@@ -39,16 +39,22 @@ class AssetService
     {
         DB::beginTransaction();
         try {
-            // Set otomatis created_by dari user yang sedang login
             $data['created_by'] = auth()->id();
+            
+            // CEGAH ELOQUENT MENYIMPAN PATH .TMP
+            if (isset($data['foto'])) {
+                unset($data['foto']);
+            }
             
             $asset = $this->assetRepository->create($data);
 
-            // Handle Upload Foto / Dokumen
+            // Handle Upload Foto
             $this->handleFileUploads($asset, $files);
 
             DB::commit();
-            return $asset;
+            
+            // Wajib refresh agar API memuat path foto terbaru dari Database
+            return $asset->refresh(); 
         } catch (Exception $e) {
             DB::rollBack();
             throw $e;
@@ -60,12 +66,21 @@ class AssetService
         DB::beginTransaction();
         try {
             $data['updated_by'] = auth()->id();
+            
+            // CEGAH ELOQUENT MENYIMPAN PATH .TMP
+            if (isset($data['foto'])) {
+                unset($data['foto']);
+            }
+            
             $asset = $this->assetRepository->update($id, $data);
             
+            // Handle Upload Foto
             $this->handleFileUploads($asset, $files);
 
             DB::commit();
-            return $asset;
+            
+            // Wajib refresh agar API memuat path foto terbaru dari Database
+            return $asset->refresh(); 
         } catch (Exception $e) {
             DB::rollBack();
             throw $e;
