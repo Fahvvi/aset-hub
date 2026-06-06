@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 class MaintenanceController extends Controller
 {
+
     public function index()
     {
         // Eager load relasi untuk dikirim ke React

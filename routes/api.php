@@ -7,17 +7,24 @@ use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\VendorController;
 use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\AssetRequestController;
+use App\Http\Controllers\Api\V1\MaintenanceController; // <-- Pastikan ini di-import
 
 Route::prefix('v1')->group(function () {
     
-    // --- 1. PUBLIC ROUTES (TIDAK BUTUH LOGIN) ---
+    // --- 1. RUTE PENYELAMAT ANTI ERROR 500 ---
+    // Jika token tidak valid, Laravel akan melempar error 401 lewat sini, bukan error 500
+    Route::get('/unauthenticated', function () {
+        return response()->json(['message' => 'Unauthenticated.'], 401);
+    })->name('login');
+
+    // --- 2. PUBLIC ROUTES (TIDAK BUTUH LOGIN) ---
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
     });
 
     Route::get('scan/{kode_aset}', [\App\Http\Controllers\Api\V1\AssetController::class, 'scan']);
 
-    // --- 2. PROTECTED ROUTES (BUTUH BEARER TOKEN) ---
+    // --- 3. PROTECTED ROUTES (BUTUH BEARER TOKEN) ---
     Route::middleware('auth:sanctum')->group(function () {
         
         // Auth Logout & Me
@@ -42,21 +49,19 @@ Route::prefix('v1')->group(function () {
         Route::get('locations', [\App\Http\Controllers\Api\V1\LocationController::class, 'index']);
         Route::get('vendors', [\App\Http\Controllers\Api\V1\VendorController::class, 'index']);
         Route::get('users', [\App\Http\Controllers\Api\V1\UserController::class, 'index']);
-        Route::get('maintenances', [\App\Http\Controllers\Api\V1\MaintenanceController::class, 'index']);
+        Route::get('maintenances', [MaintenanceController::class, 'index']); // GET Maintenance
+        Route::get('maintenances/{id}', [MaintenanceController::class, 'show']); // GET Single Maintenance
         Route::get('transfers', [\App\Http\Controllers\Api\V1\TransferController::class, 'index']);
         Route::get('disposals', [\App\Http\Controllers\Api\V1\DisposalController::class, 'index']);
         Route::get('dashboard/summary', [\App\Http\Controllers\Api\V1\DashboardController::class, 'summary']);
         
-        // Rute GET Baru untuk Departemen & Pengajuan Aset
         Route::get('departments', [DepartmentController::class, 'index']);
         Route::get('asset-requests', [AssetRequestController::class, 'index']);
 
         // --- STAFF, ADMIN & SUPERADMIN BISA LAPOR (Create) ---
         Route::middleware('role:superadmin,admin,staff')->group(function () {
-            Route::post('maintenances', [\App\Http\Controllers\Api\V1\MaintenanceController::class, 'store']);
+            Route::post('maintenances', [MaintenanceController::class, 'store']); // Create Maintenance
             Route::post('transfers', [\App\Http\Controllers\Api\V1\TransferController::class, 'store']);
-            
-            // Rute POST Baru: Pengajuan Aset
             Route::post('asset-requests', [AssetRequestController::class, 'store']);
         });
 
@@ -70,15 +75,13 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('locations', \App\Http\Controllers\Api\V1\LocationController::class)->except('index');
             Route::apiResource('vendors', \App\Http\Controllers\Api\V1\VendorController::class)->except('index');
             Route::apiResource('users', \App\Http\Controllers\Api\V1\UserController::class)->except('index');
-            
-            // Rute Master Data Baru: Departemen
             Route::apiResource('departments', DepartmentController::class)->except('index');
             
-            // Approval Pengajuan Aset
             Route::put('asset-requests/{id}/status', [AssetRequestController::class, 'updateStatus']);
             
-            Route::put('maintenances/{id}', [\App\Http\Controllers\Api\V1\MaintenanceController::class, 'update']);
-            Route::delete('maintenances/{id}', [\App\Http\Controllers\Api\V1\MaintenanceController::class, 'destroy']);
+            // Edit & Delete Maintenance
+            Route::put('maintenances/{id}', [MaintenanceController::class, 'update']);
+            Route::delete('maintenances/{id}', [MaintenanceController::class, 'destroy']);
             
             Route::put('transfers/{id}/approve', [\App\Http\Controllers\Api\V1\TransferController::class, 'approve']);
             Route::put('transfers/{id}/reject', [\App\Http\Controllers\Api\V1\TransferController::class, 'reject']);
