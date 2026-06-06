@@ -30,8 +30,25 @@ class MaintenanceController extends Controller
             'keterangan' => 'nullable|string',
         ]);
 
-        // Otomatis set requested_by ke user yang sedang login
-        $validated['requested_by'] = auth()->id(); // 1 sebagai fallback sementara jika auth belum ketat
+        $validated['requested_by'] = auth()->id(); 
+        $validated['status'] = 'pending'; 
+
+        // =======================================================
+        // MESIN GENERATOR KODE MAINTENANCE (MTN-YYYY-XXXX)
+        // =======================================================
+        $tahun = date('Y');
+        $lastMaintenance = Maintenance::where('kode_maintenance', 'like', "MTN-{$tahun}-%")
+                                      ->orderBy('id', 'desc')
+                                      ->first();
+        $urutan = 1;
+        
+        if ($lastMaintenance && $lastMaintenance->kode_maintenance) {
+            $parts = explode('-', $lastMaintenance->kode_maintenance);
+            $urutan = (int) end($parts) + 1;
+        }
+        
+        $validated['kode_maintenance'] = 'MTN-' . $tahun . '-' . str_pad($urutan, 4, '0', STR_PAD_LEFT);
+        // =======================================================
 
         DB::beginTransaction();
         try {
