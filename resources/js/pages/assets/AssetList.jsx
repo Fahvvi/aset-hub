@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Box, Plus, Search, Filter, Edit, Trash2, Eye, Download, MapPin, Briefcase, Hash
+  Box, Plus, Search, Filter, Edit, Trash2, Eye, Download, MapPin, Briefcase, Hash, Upload, ChevronDown, FileSpreadsheet
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import axiosInstance from '../../api/axios';
@@ -11,6 +11,10 @@ export default function AssetList() {
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // State untuk mengontrol Dropdown Import
+  const [isImportDropdownOpen, setIsImportDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
   const { user } = useAuthStore();
 
   const fetchAssets = async () => {
@@ -27,6 +31,15 @@ export default function AssetList() {
 
   useEffect(() => {
     fetchAssets();
+    
+    // Fungsi untuk menutup dropdown jika user klik di luar area dropdown
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsImportDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleExport = () => {
@@ -37,7 +50,6 @@ export default function AssetList() {
     
     assets.forEach(row => {
       const harga = row.harga_perolehan || 0;
-      // Gunakan pembacaan yang sesuai dengan key dari AssetResource.php
       const kategori = row.kategori || '-';
       const departemen = row.departemen || '-';
       const lokasi = row.lokasi || '-';
@@ -56,15 +68,63 @@ export default function AssetList() {
     document.body.removeChild(link);
   };
 
+  // Fungsi untuk mendownload template langsung dari API Laravel
+  const handleDownloadTemplate = async () => {
+    setIsImportDropdownOpen(false);
+    
+    try {
+      // Panggil API dengan config 'blob' karena kita menerima file, bukan JSON
+      const response = await axiosInstance.get('/assets/template/download', {
+        responseType: 'blob', 
+      });
+
+      // Ubah data blob menjadi URL objek sementara di browser
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Nama file saat disimpan di laptop/HP
+      link.setAttribute('download', 'template_import_aset.csv'); 
+      document.body.appendChild(link);
+      link.click();
+      
+      // Bersihkan URL sementara dari memori
+      link.parentNode.removeChild(link);
+    } catch (error) {
+      console.error('Error mendownload template:', error);
+      alert('Gagal mengunduh template. Pastikan Anda memiliki akses akses (Admin).');
+    }
+  };
+
   const handleImportClick = () => {
+    setIsImportDropdownOpen(false);
     document.getElementById('import-file').click();
   };
 
-  const handleFileImport = (e) => {
+  // Fungsi SEBENARNYA untuk mengirim file CSV ke Laravel
+  const handleFileImport = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    alert(`File "${file.name}" siap diunggah! \nPastikan format kolom sesuai dengan template standar sistem.`);
-    e.target.value = null; 
+    
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setIsLoading(true);
+    try {
+      const response = await axiosInstance.post('/assets/import/csv', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      alert(response.data.message || "Data berhasil di-import!");
+      fetchAssets(); // Refresh daftar aset setelah import sukses
+    } catch (error) {
+      alert(error.response?.data?.message || 'Terjadi kesalahan saat meng-import data.');
+      console.error(error.response?.data?.error);
+    } finally {
+      setIsLoading(false);
+      e.target.value = null; // Reset input file
+    }
   };
 
   const handleDelete = async (id, nama_aset) => {
@@ -80,7 +140,6 @@ export default function AssetList() {
 
   const filteredAssets = assets.filter(asset => {
     const term = searchTerm.toLowerCase();
-    // Gunakan pembacaan yang sesuai dengan key dari AssetResource.php
     const deptName = (asset.departemen || '').toLowerCase();
     const catName = (asset.kategori || '').toLowerCase();
 
@@ -121,11 +180,34 @@ export default function AssetList() {
         
         {user?.role !== 'staff' && (
           <div className="flex items-center gap-3">
-            <input type="file" id="import-file" className="hidden" accept=".csv, .xlsx, .xls" onChange={handleFileImport} />
+            <input type="file" id="import-file" className="hidden" accept=".csv, .txt" onChange={handleFileImport} />
             
-            <button onClick={handleImportClick} className="hidden sm:flex items-center justify-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap">
-              Import
-            </button>
+            {/* DROPDOWN IMPORT & TEMPLATE */}
+            <div className="relative hidden sm:block" ref={dropdownRef}>
+              <button 
+                onClick={() => setIsImportDropdownOpen(!isImportDropdownOpen)} 
+                className="flex items-center justify-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap"
+              >
+                <Upload size={18} /> Import <ChevronDown size={16} />
+              </button>
+
+              {isImportDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 z-50 overflow-hidden">
+                  <button 
+                    onClick={handleDownloadTemplate} 
+                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary flex items-center gap-2 transition-colors border-b border-gray-50"
+                  >
+                    <FileSpreadsheet size={16} /> Unduh Template CSV
+                  </button>
+                  <button 
+                    onClick={handleImportClick} 
+                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary flex items-center gap-2 transition-colors"
+                  >
+                    <Upload size={16} /> Unggah File CSV
+                  </button>
+                </div>
+              )}
+            </div>
 
             <button onClick={handleExport} className="flex items-center justify-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap">
               <Download size={18} /> Export CSV
@@ -199,7 +281,6 @@ export default function AssetList() {
                       </div>
                     </td>
 
-                    {/* PEMBACAAN DATA DEPARTEMEN DI SINI (Sesuai dengan AssetResource.php) */}
                     <td className="px-5 py-4 whitespace-nowrap">
                       <p className="font-medium text-gray-800 flex items-center gap-1.5 mb-1">
                         <Briefcase size={14} className="text-primary"/> {asset.departemen || '-'}

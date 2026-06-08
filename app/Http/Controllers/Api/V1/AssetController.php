@@ -76,24 +76,41 @@ class AssetController extends Controller
         ];
 
         $columns = [
-            'nama_aset', 
-            'category_id', 
-            'department_id', 
-            'location_id', 
-            'vendor_id', 
-            'harga_perolehan', 
-            'tanggal_pembelian', 
-            'tanggal_aktif', 
-            'masa_pakai_tahun', 
-            'kondisi', 
-            'status'
+            'nama_aset',        // $row[0]
+            'category_id',      // $row[1]
+            'department_id',    // $row[2]
+            'location_id',      // $row[3]
+            'vendor_id',        // $row[4]
+            'harga_perolehan',  // $row[5]
+            'tanggal_pembelian',// $row[6]
+            'tanggal_aktif',    // $row[7]
+            'masa_pakai_tahun', // $row[8]
+            'kondisi',          // $row[9]
+            'status'            // $row[10]
         ];
 
         $callback = function() use($columns) {
             $file = fopen('php://output', 'w');
+            
+            // 1. Tulis Baris Header (Nama Kolom)
             fputcsv($file, $columns);
-            // Baris contoh pengisian data
-            fputcsv($file, ['Asus Vivobook Go 14', '1', '1', '1', '1', '20000000', '2026-06-05', '2026-06-08', '5', 'baik', 'aktif']);
+            
+            // 2. Tulis Baris Contoh (Sebagai panduan user saat membuka Excel)
+            // INGAT: Kolom ID (Kategori, Dept, Lokasi, Vendor) HARUS ANGKA, bukan teks!
+            fputcsv($file, [
+                'Asus Vivobook Go 14', // nama_aset
+                '1',                   // category_id (Angka)
+                '1',                   // department_id (Angka)
+                '1',                   // location_id (Angka)
+                '1',                   // vendor_id (Angka, kosongkan jika tidak ada)
+                '20000000',            // harga_perolehan (Tanpa titik/koma)
+                '2026-06-05',          // tanggal_pembelian (YYYY-MM-DD)
+                '2026-06-08',          // tanggal_aktif (YYYY-MM-DD)
+                '5',                   // masa_pakai_tahun
+                'baik',                // kondisi (baik, rusak_ringan, rusak_berat)
+                'aktif'                // status (aktif, tidak_aktif)
+            ]);
+            
             fclose($file);
         };
 
