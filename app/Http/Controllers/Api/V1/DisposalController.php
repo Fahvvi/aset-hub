@@ -35,7 +35,9 @@ class DisposalController extends Controller
     {
         DB::beginTransaction();
         try {
-            $disposal = AssetDisposal::findOrFail($id);
+            // Tambahkan with('asset') untuk memastikan relasi aset ikut terbaca
+            $disposal = AssetDisposal::with('asset')->findOrFail($id);
+            
             if ($disposal->status !== 'pending') {
                 return response()->json(['message' => 'Pengajuan ini sudah diproses.'], 400);
             }
@@ -47,16 +49,26 @@ class DisposalController extends Controller
             ]);
 
             // 2. Kunci Aset & ubah statusnya menjadi disposal
-            $disposal->asset->update([
-                'status' => 'disposal',
-                'kondisi' => 'rusak_berat' // Asumsi dasar, bisa disesuaikan
-            ]);
+            if ($disposal->asset) {
+                $disposal->asset->update([
+                    'status' => 'disposal',
+                    'kondisi' => 'rusak_berat' // Asumsi dasar, bisa disesuaikan
+                ]);
+            } else {
+                throw new \Exception("Aset terkait tidak ditemukan di database!");
+            }
 
             DB::commit();
             return response()->json(['message' => 'Disposal disetujui. Aset telah dihapus dari peredaran.']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Terjadi kesalahan sistem'], 500);
+            
+            // --- INI KUNCI UTAMANYA: Tampilkan error asli ---
+            return response()->json([
+                'message' => 'Terjadi kesalahan sistem', 
+                'error' => $e->getMessage(),
+                'line' => $e->getLine()
+            ], 500);
         }
     }
 

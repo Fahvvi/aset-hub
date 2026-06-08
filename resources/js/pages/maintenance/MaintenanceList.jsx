@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Wrench, Plus, Search, Filter, Edit, Trash2, 
-  X, AlertCircle, CheckCircle, Clock, XCircle
+  X, AlertCircle, CheckCircle, Clock, XCircle, Briefcase
 } from 'lucide-react';
 import axiosInstance from '../../api/axios';
-import useAuthStore from '../../store/authStore'; // <-- 1. Import Auth Store
+import useAuthStore from '../../store/authStore';
 
 export default function MaintenanceList() {
   const [maintenances, setMaintenances] = useState([]);
   const [assets, setAssets] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [vendors, setVendors] = useState([]); // <-- Menggunakan Vendors, bukan Users
   
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,20 +21,19 @@ export default function MaintenanceList() {
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // <-- 2. Ambil data user saat ini untuk mengecek role-nya
   const { user } = useAuthStore();
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [mntRes, astRes, usrRes] = await Promise.all([
+      const [mntRes, astRes, vndRes] = await Promise.all([
         axiosInstance.get('/maintenances'),
         axiosInstance.get('/assets').catch(() => ({ data: [] })),
-        axiosInstance.get('/users').catch(() => ({ data: [] }))
+        axiosInstance.get('/vendors').catch(() => ({ data: [] })) // <-- Fetch data Vendor
       ]);
       setMaintenances(mntRes.data.data || mntRes.data);
       setAssets(astRes.data.data || astRes.data);
-      setUsers(usrRes.data.data || usrRes.data);
+      setVendors(vndRes.data.data || vndRes.data);
     } catch (error) {
       console.error('Error fetching maintenance data:', error);
     } finally {
@@ -55,7 +54,7 @@ export default function MaintenanceList() {
       setSelectedId(item.id);
       setFormData({
         status: item.status || 'pending',
-        handled_by: item.handled_by || '',
+        vendor_id: item.vendor_id || '', // <-- Menggunakan vendor_id
         tanggal_mulai: item.tanggal_mulai || '',
         tanggal_selesai: item.tanggal_selesai || '',
         tindakan_perbaikan: item.tindakan_perbaikan || '',
@@ -138,7 +137,6 @@ export default function MaintenanceList() {
           <p className="text-sm md:text-base text-gray-500 mt-1">Laporan kerusakan dan riwayat perbaikan aset.</p>
         </div>
         
-        {/* Tombol Lapor Kerusakan (Semua role boleh melihat ini) */}
         <button 
           onClick={() => openModal('add')}
           className="flex items-center justify-center gap-2 bg-primary hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap"
@@ -172,7 +170,7 @@ export default function MaintenanceList() {
               <tr>
                 <th className="px-5 py-4 font-semibold whitespace-nowrap">Kode Tiket</th>
                 <th className="px-5 py-4 font-semibold whitespace-nowrap">Aset Terkait</th>
-                <th className="px-5 py-4 font-semibold whitespace-nowrap">Tipe & Pelapor</th>
+                <th className="px-5 py-4 font-semibold whitespace-nowrap">Tipe & Vendor</th>
                 <th className="px-5 py-4 font-semibold whitespace-nowrap">Status</th>
                 <th className="px-5 py-4 font-semibold whitespace-nowrap">Biaya (Rp)</th>
                 <th className="px-5 py-4 font-semibold text-right whitespace-nowrap">Aksi</th>
@@ -193,7 +191,10 @@ export default function MaintenanceList() {
                     </td>
                     <td className="px-5 py-4 whitespace-nowrap">
                       <p className="font-medium text-gray-800 capitalize">{item.tipe}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Oleh: {item.requester?.nama || 'Sistem'}</p>
+                      {/* <-- Menampilkan nama Vendor yang menangani --> */}
+                      <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                        <Briefcase size={12}/> {item.vendor?.nama_vendor || 'Belum ditentukan'}
+                      </p>
                     </td>
                     <td className="px-5 py-4 whitespace-nowrap">
                       {getStatusBadge(item.status)}
@@ -202,8 +203,6 @@ export default function MaintenanceList() {
                       {item.biaya_perbaikan ? new Intl.NumberFormat('id-ID').format(item.biaya_perbaikan) : '-'}
                     </td>
                     <td className="px-5 py-4 text-right whitespace-nowrap">
-                      
-                      {/* <-- 3. RBAC: Sembunyikan tombol Edit dan Hapus jika role-nya adalah staff --> */}
                       {user?.role !== 'staff' ? (
                         <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                           <button 
@@ -222,7 +221,6 @@ export default function MaintenanceList() {
                       ) : (
                         <span className="text-xs text-gray-400 italic">View Only</span>
                       )}
-
                     </td>
                   </tr>
                 ))
@@ -301,10 +299,11 @@ export default function MaintenanceList() {
                       <p className="text-[10px] text-gray-400 mt-1">Status 'Selesai' akan mengubah kondisi aset menjadi Baik otomatis.</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Ditangani Oleh (Teknisi)</label>
-                      <select name="handled_by" value={formData.handled_by} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
-                        <option value="">-- Pilih Teknisi --</option>
-                        {users.map(u => <option key={u.id} value={u.id}>{u.nama}</option>)}
+                      {/* <-- Mengubah Label dan Mapping ke Vendor --> */}
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Ditangani Oleh (Vendor)</label>
+                      <select name="vendor_id" value={formData.vendor_id} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
+                        <option value="">-- Pilih Vendor --</option>
+                        {vendors.map(v => <option key={v.id} value={v.id}>{v.nama_vendor}</option>)}
                       </select>
                     </div>
                     

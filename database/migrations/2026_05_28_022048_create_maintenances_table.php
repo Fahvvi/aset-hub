@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('kode_maintenance', 30)->unique();
             $table->foreignId('asset_id')->constrained('assets')->cascadeOnDelete();
             $table->foreignId('requested_by')->constrained('users');
-            $table->foreignId('handled_by')->nullable()->constrained('users');
+            $table->foreignId('vendor_id')->nullable()->constrained('vendors')->nullOnDelete();
             $table->enum('tipe', ['preventif', 'korektif']);
             $table->date('tanggal_laporan');
             $table->date('tanggal_mulai')->nullable();

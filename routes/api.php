@@ -91,6 +91,9 @@ Route::prefix('v1')->group(function () {
                 Route::get('holders-history', [\App\Http\Controllers\Api\V1\ReportController::class, 'assetHoldersHistory']);
                 Route::get('depreciation', [\App\Http\Controllers\Api\V1\ReportController::class, 'assetDepreciation']);
             });
+            Route::get('assets/template/download', [\App\Http\Controllers\Api\V1\AssetController::class, 'downloadTemplate']);
+            Route::post('assets/import/csv', [\App\Http\Controllers\Api\V1\AssetController::class, 'import']);
+
         });
 
         // --- HANYA SUPERADMIN (High Risk Operations) ---

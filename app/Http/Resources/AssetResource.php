@@ -27,6 +27,8 @@ class AssetResource extends JsonResource
             'departemen' => $this->whenLoaded('department', fn() => $this->department?->nama_departemen),
             'vendor' => $this->whenLoaded('vendor', fn() => $this->vendor?->nama_vendor),
             'penanggung_jawab' => $this->whenLoaded('user', fn() => $this->user?->nama),
+            'maintenances' => $this->whenLoaded('maintenances'),
+            'transfers' => $this->whenLoaded('transfers'),
             
             // --- IDENTITAS UNIK ---
             'nomor_seri' => $this->nomor_seri,

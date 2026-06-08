@@ -7,6 +7,9 @@ use App\Http\Requests\Asset\StoreAssetRequest;
 use App\Http\Requests\Asset\UpdateAssetRequest;
 use App\Http\Resources\AssetResource; // Abaikan jika Anda belum mengisi detail Resource ini
 use App\Services\AssetService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use App\Models\Asset;
 
 class AssetController extends Controller
 {
@@ -60,5 +63,98 @@ class AssetController extends Controller
         }
 
         return new \App\Http\Resources\AssetResource($asset);
+    }
+
+    public function downloadTemplate()
+    {
+        $headers = [
+            "Content-type" => "text/csv",
+            "Content-Disposition" => "attachment; filename=template_import_aset.csv",
+            "Pragma" => "no-cache",
+            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
+            "Expires" => "0"
+        ];
+
+        $columns = [
+            'nama_aset', 
+            'category_id', 
+            'department_id', 
+            'location_id', 
+            'vendor_id', 
+            'harga_perolehan', 
+            'tanggal_pembelian', 
+            'tanggal_aktif', 
+            'masa_pakai_tahun', 
+            'kondisi', 
+            'status'
+        ];
+
+        $callback = function() use($columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+            // Baris contoh pengisian data
+            fputcsv($file, ['Asus Vivobook Go 14', '1', '1', '1', '1', '20000000', '2026-06-05', '2026-06-08', '5', 'baik', 'aktif']);
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Memproses file CSV dan mendaftarkannya ke database secara massal
+     */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt'
+        ]);
+
+        $file = $request->file('file');
+        $handle = fopen($file->getRealPath(), 'r');
+        
+        // Lewati baris pertama (header)
+        fgetcsv($handle, 1000, ',');
+        
+        DB::beginTransaction();
+        try {
+            $tahun = date('Y');
+            while (($row = fgetcsv($handle, 1000, ',')) !== FALSE) {
+                if (empty($row[0])) continue;
+
+                // Hitung kode unik otomatis bulanan/tahunan (Anti Bentrok)
+                $asetTerakhir = \App\Models\Asset::where('kode_aset', 'like', "SDI-{$tahun}-%")
+                    ->orderBy('id', 'desc')
+                    ->first();
+                $urutan = 1;
+                if ($asetTerakhir) {
+                    $parts = explode('-', $asetTerakhir->kode_aset);
+                    $urutan = (int) end($parts) + 1;
+                }
+                $kodeAset = 'SDI-' . $tahun . '-' . str_pad($urutan, 4, '0', STR_PAD_LEFT);
+
+                \App\Models\Asset::create([
+                    'kode_aset'         => $kodeAset,
+                    'nama_aset'         => $row[0],
+                    'category_id'       => (int)$row[1],
+                    'department_id'     => (int)$row[2],
+                    'location_id'       => (int)$row[3],
+                    'vendor_id'         => !empty($row[4]) ? (int)$row[4] : null,
+                    'harga_perolehan'   => (float)$row[5],
+                    'tanggal_pembelian' => $row[6],
+                    'tanggal_aktif'     => $row[7],
+                    'masa_pakai_tahun'  => (int)$row[8],
+                    'kondisi'           => !empty($row[9]) ? $row[9] : 'baik',
+                    'status'            => !empty($row[10]) ? $row[10] : 'aktif',
+                    'created_by'        => auth()->id()
+                ]);
+            }
+            DB::commit();
+            fclose($handle);
+            return response()->json(['message' => 'Seluruh data aset dalam dokumen berhasil di-import ke sistem.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            fclose($handle);
+            return response()->json(['message' => 'Gagal memproses import dokumen', 'error' => $e->getMessage()], 500);
+        }
     }
 }

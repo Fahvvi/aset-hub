@@ -15,7 +15,7 @@ use HasFactory;
         'kode_maintenance', // <--- WAJIB TAMBAHKAN INI DI BARIS PALING ATAS
         'asset_id', 
         'requested_by', 
-        'handled_by', 
+        'vendor_id', 
         'tipe', 
         'tanggal_laporan', 
         'tanggal_mulai', 
@@ -37,5 +37,9 @@ use HasFactory;
     public function handler() {
         return $this->belongsTo(User::class, 'handled_by');
     }
+
+    public function vendor() {
+    return $this->belongsTo(Vendor::class, 'vendor_id'); // Pastikan Anda sudah punya model Vendor
+}
 
 }

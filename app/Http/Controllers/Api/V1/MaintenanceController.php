@@ -13,7 +13,7 @@ class MaintenanceController extends Controller
     public function index()
     {
         // Eager load relasi untuk dikirim ke React
-        $maintenances = Maintenance::with(['asset', 'requester', 'handler'])
+        $maintenances = Maintenance::with(['asset', 'requester', 'vendor'])
             ->orderBy('created_at', 'desc')
             ->get();
             
@@ -67,7 +67,7 @@ class MaintenanceController extends Controller
 
     public function show($id)
     {
-        $maintenance = Maintenance::with(['asset', 'requester', 'handler'])->findOrFail($id);
+        $maintenance = Maintenance::with(['asset', 'requester', 'vendor'])->findOrFail($id);
         return response()->json($maintenance);
     }
 
@@ -76,7 +76,7 @@ class MaintenanceController extends Controller
         $maintenance = Maintenance::findOrFail($id);
         
         $validated = $request->validate([
-            'handled_by' => 'nullable|exists:users,id',
+            'vendor_id' => 'nullable|exists:vendors,id',
             'tanggal_mulai' => 'nullable|date',
             'tanggal_selesai' => 'nullable|date',
             'tindakan_perbaikan' => 'nullable|string',

@@ -32,7 +32,11 @@ class AssetService
         return $query->get();
     }
     public function getAssetById($id) { 
-        return Asset::with(['category', 'location', 'vendor', 'department', 'user'])->findOrFail($id);
+        return Asset::with(['category', 'location', 'vendor', 'department', 'user', 'maintenances.vendor',
+            'transfers.dariLokasi', 
+            'transfers.keLokasi', 
+            'transfers.keUser',
+            'transfers.dariUser'])->findOrFail($id);
         }
 
     public function createAsset(array $data, $files = [])

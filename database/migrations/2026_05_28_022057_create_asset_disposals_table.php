@@ -21,6 +21,7 @@ return new class extends Migration
             $table->foreignId('disetujui_oleh')->nullable()->constrained('users');
             $table->string('dokumen_referensi', 100)->nullable();
             $table->foreignId('created_by')->constrained('users');
+            $table->string('status')->default('pending');
             $table->timestamps();
         });
     }

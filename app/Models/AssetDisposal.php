@@ -10,7 +10,7 @@ class AssetDisposal extends Model
 
 use HasFactory;
     protected $fillable = ['asset_id', 'tanggal_disposal', 'metode_disposal', 
-    'nilai_disposal', 'alasan', 'disetujui_oleh', 'dokumen_referensi', 'created_by'];
+    'nilai_disposal', 'alasan', 'disetujui_oleh', 'dokumen_referensi', 'created_by', 'status'];
 
     protected $guarded = ['id'];
 

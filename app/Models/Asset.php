@@ -36,4 +36,15 @@ class Asset extends Model
         return $this->morphMany(Document::class, 'documentable');
     }
 
+    public function maintenances() 
+    {
+        return $this->hasMany(Maintenance::class, 'asset_id');
+    }
+
+    // Relasi ke tabel asset_transfers (Pastikan namanya 'transfers', bukan 'assetTransfers')
+    public function transfers() 
+    {
+        return $this->hasMany(AssetTransfer::class, 'asset_id');
+    }
+
     }
